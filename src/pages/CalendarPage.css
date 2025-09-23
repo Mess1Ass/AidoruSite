@@ -1,0 +1,340 @@
+/* 演出日历页面样式 */
+
+.calendar-page {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.calendar-container {
+  min-height: 800px;
+}
+
+.calendar-container .semi-card-body {
+  padding: 0;
+  height: 100%;
+}
+
+.calendar-wrapper {
+  padding: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 月份导航 */
+.calendar-month-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--semi-color-border);
+}
+
+.calendar-month-header .semi-button {
+  margin: 0 10px;
+}
+
+/* 星期标题 */
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.weekday-header {
+  text-align: center;
+  padding: 12px 8px;
+  font-weight: bold;
+  color: var(--semi-color-text-1);
+  background-color: var(--semi-color-fill-0);
+  border-radius: 4px;
+}
+
+/* 日期网格 */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(5, 1fr);
+  gap: 2px;
+  flex: 1;
+  height: 500px;
+}
+
+.calendar-cell {
+  position: relative;
+}
+
+/* 日期单元格 */
+.calendar-date-cell {
+  min-height: 120px;
+  height: 100%;
+  padding: 8px;
+  position: relative;
+  cursor: pointer;
+  border: 1px solid var(--semi-color-border);
+  border-radius: 8px;
+  background-color: var(--semi-color-bg-0);
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.calendar-date-cell:hover {
+  background-color: var(--semi-color-fill-0);
+  border-color: var(--semi-color-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.calendar-date-cell.selected {
+  background-color: var(--semi-color-primary-light);
+  border-color: var(--semi-color-primary);
+  border-width: 2px;
+}
+
+.calendar-date-cell.today {
+  background-color: var(--semi-color-warning-light);
+  border-color: var(--semi-color-warning);
+  border-width: 2px;
+}
+
+.calendar-date-cell.other-month {
+  background-color: var(--semi-color-fill-0);
+  color: var(--semi-color-text-3);
+  opacity: 0.5;
+}
+
+/* 日期数字 */
+.date-number {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 4px;
+  color: var(--semi-color-text-0);
+}
+
+.calendar-date-cell.today .date-number {
+  color: var(--semi-color-warning);
+}
+
+.calendar-date-cell.selected .date-number {
+  color: var(--semi-color-primary);
+}
+
+/* 演出数量徽章 */
+.event-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background-color: var(--semi-color-primary);
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+}
+
+/* 演出地点信息 */
+.event-locations {
+  margin-top: 8px;
+  flex: 1;
+}
+
+.location-item {
+  font-size: 10px;
+  padding: 2px 4px;
+  background-color: var(--semi-color-primary-light);
+  border-radius: 3px;
+  margin-bottom: 2px;
+  border: 1px solid var(--semi-color-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.more-events {
+  font-size: 9px;
+  color: var(--semi-color-text-2);
+  text-align: center;
+  margin-top: 2px;
+  padding: 1px 3px;
+  background-color: var(--semi-color-fill-0);
+  border-radius: 3px;
+}
+
+/* 侧边栏样式 */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.today-events {
+  margin-bottom: 16px;
+}
+
+.today-events .semi-card-body {
+  padding: 16px;
+}
+
+.event-card {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid var(--semi-color-border);
+}
+
+.event-card:hover {
+  border-color: var(--semi-color-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.event-card .semi-card-body {
+  padding: 12px;
+}
+
+.event-title {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.event-detail {
+  color: var(--semi-color-text-2);
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.event-detail .semi-icon {
+  margin-right: 4px;
+}
+
+/* 统计信息样式 */
+.stats-card .semi-card-body {
+  padding: 16px;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--semi-color-border);
+}
+
+.stat-item:last-child {
+  border-bottom: none;
+}
+
+.stat-label {
+  color: var(--semi-color-text-1);
+}
+
+.stat-value {
+  font-weight: bold;
+  color: var(--semi-color-primary);
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .calendar-page {
+    max-width: 100%;
+    padding: 16px;
+  }
+  
+  .calendar-container {
+    min-height: 600px;
+  }
+  
+  .calendar-grid {
+    height: 400px;
+  }
+  
+  .calendar-date-cell {
+    min-height: 80px;
+  }
+}
+
+@media (max-width: 768px) {
+  .calendar-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+  
+  .calendar-container {
+    min-height: 500px;
+  }
+  
+  .calendar-grid {
+    height: 300px;
+  }
+  
+  .calendar-date-cell {
+    min-height: 60px;
+    padding: 4px;
+  }
+  
+  .location-item {
+    font-size: 9px;
+    padding: 1px 3px;
+  }
+  
+  .event-badge {
+    width: 16px;
+    height: 16px;
+    font-size: 9px;
+  }
+}
+
+/* 隐藏表单字段标签 */
+.semi-form-field-label {
+  display: none !important;
+}
+
+.semi-form-field-label-text {
+  display: none !important;
+}
+
+.semi-form-field-label-wrapper {
+  display: none !important;
+}
+
+/* 防止表单自动聚焦 */
+.semi-form {
+  pointer-events: none;
+}
+
+.semi-form .semi-form-field {
+  pointer-events: auto;
+}
+
+.semi-form .semi-card {
+  pointer-events: auto;
+}
+
+.semi-form .semi-button {
+  pointer-events: auto;
+}
+
+.semi-form .semi-space {
+  pointer-events: auto;
+}
