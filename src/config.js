@@ -10,7 +10,7 @@ const getCurrentDomain = () => {
 
 // 域名配置
 const DOMAIN_CONFIG = {
-  'diobox.tool4me.cn': {
+  'aidoru.tool4me.cn': {
     name: 'box',
     editorMode: true,
     theme: 'default'
@@ -43,7 +43,7 @@ const config = {
     }
   },
   prod: {
-    API_BASE_URL: "https://diobox.tool4me.cn",
+    API_BASE_URL: "https://ttapi.tool4me.cn",
     domainConfig: getCurrentDomainConfig()
   }
 };
