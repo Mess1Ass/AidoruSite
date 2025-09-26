@@ -1,7 +1,7 @@
 // src/config.js
 
-// const ENV = "dev"; // 切换成 "prod" 使用服务器地址
-const ENV = "prod"; 
+const ENV = "dev"; // 切换成 "prod" 使用服务器地址
+// const ENV = "prod"; 
 
 // 获取当前域名
 const getCurrentDomain = () => {
@@ -30,7 +30,11 @@ const DOMAIN_CONFIG = {
 // 获取当前域名配置
 const getCurrentDomainConfig = () => {
   const currentDomain = getCurrentDomain();
-  return DOMAIN_CONFIG[currentDomain] || DOMAIN_CONFIG['diobox.tool4me.cn']; // 默认配置
+  return DOMAIN_CONFIG[currentDomain] || {
+    name: 'default',
+    editorMode: true,
+    theme: 'default'
+  }; // 默认配置
 };
 
 const config = {

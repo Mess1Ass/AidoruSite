@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Typography, Space, Row, Col, Modal, Form, Input, DatePicker, TimePicker, Notification } from '@douyinfe/semi-ui';
-import { IconPlus, IconCalendar, IconMapPin, IconClock, IconUser, IconChevronLeft, IconChevronRight, IconClose } from '@douyinfe/semi-icons';
+import { Card, Button, Typography, Space, Row, Col, Modal, Form, Input, DatePicker, TimePicker, Notification, Upload, Tag } from '@douyinfe/semi-ui';
+import { IconPlus, IconCalendar, IconMapPin, IconClock, IconUser, IconChevronLeft, IconChevronRight, IconClose, IconUpload, IconImage } from '@douyinfe/semi-icons';
 import { getCurrentDomainConfig } from '../config';
 import config from '../config';
 import './CalendarPage.css';
@@ -10,19 +10,68 @@ const { Title, Text } = Typography;
 const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [modalVisible, setModalVisible] = useState(false);
-  const [timeTableItems, setTimeTableItems] = useState([]);
-  const [specialEventsItems, setSpecialEventsItems] = useState([]);
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [viewEvent, setViewEvent] = useState(null);
-  const [newEvent, setNewEvent] = useState({ title: '', date: null, entryTime: '', startTime: '', location: '' });
+  const [newEvent, setNewEvent] = useState({ title: '', date: null, location: '', city: '', groups: [], images: [] });
   const [editingId, setEditingId] = useState(null);
+  const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [imageScale, setImageScale] = useState(1);
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
   
   // 获取编辑者模式状态
   const domainConfig = getCurrentDomainConfig();
-  const isEditorMode = domainConfig.editorMode;
+  const isEditorMode = domainConfig?.editorMode ?? true;
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [formApi, setFormApi] = useState(null);
+  
+  // 将中文标点转换为英文标点
+  const convertChinesePunctuation = (text) => {
+    if (!text || typeof text !== 'string') return text;
+    
+    return text
+      .replace(/，/g, ',')     // 中文逗号 -> 英文逗号
+      .replace(/。/g, '.')     // 中文句号 -> 英文句号
+      .replace(/；/g, ';')     // 中文分号 -> 英文分号
+      .replace(/：/g, ':')     // 中文冒号 -> 英文冒号
+      .replace(/？/g, '?')    // 中文问号 -> 英文问号
+      .replace(/！/g, '!')    // 中文感叹号 -> 英文感叹号
+      .replace(/"/g, '"')     // 中文左双引号 -> 英文双引号
+      .replace(/"/g, '"')     // 中文右双引号 -> 英文双引号
+      .replace(/'/g, "'")     // 中文左单引号 -> 英文单引号
+      .replace(/'/g, "'")     // 中文右单引号 -> 英文单引号
+      .replace(/（/g, '(')     // 中文左括号 -> 英文左括号
+      .replace(/）/g, ')')     // 中文右括号 -> 英文右括号
+      .replace(/【/g, '[')     // 中文左方括号 -> 英文左方括号
+      .replace(/】/g, ']')     // 中文右方括号 -> 英文右方括号
+      .replace(/《/g, '<')     // 中文左书名号 -> 英文小于号
+      .replace(/》/g, '>')     // 中文右书名号 -> 英文大于号
+      .replace(/、/g, ',')     // 中文顿号 -> 英文逗号
+      .replace(/…/g, '...')    // 中文省略号 -> 英文省略号
+      .replace(/—/g, '-')     // 中文破折号 -> 英文连字符
+      .replace(/～/g, '~')     // 中文波浪号 -> 英文波浪号
+      .replace(/￥/g, '$')     // 中文人民币符号 -> 英文美元符号
+      .replace(/％/g, '%')     // 中文百分号 -> 英文百分号
+      .replace(/＋/g, '+')     // 中文加号 -> 英文加号
+      .replace(/－/g, '-')     // 中文减号 -> 英文减号
+      .replace(/＝/g, '=')     // 中文等号 -> 英文等号
+      .replace(/×/g, '*')     // 中文乘号 -> 英文星号
+      .replace(/÷/g, '/')     // 中文除号 -> 英文斜杠
+      .replace(/＜/g, '<')     // 中文小于号 -> 英文小于号
+      .replace(/＞/g, '>')     // 中文大于号 -> 英文大于号
+      .replace(/｜/g, '|')     // 中文竖线 -> 英文竖线
+      .replace(/＼/g, '\\')    // 中文反斜杠 -> 英文反斜杠
+      .replace(/／/g, '/')     // 中文斜杠 -> 英文斜杠
+      .replace(/＃/g, '#')     // 中文井号 -> 英文井号
+      .replace(/＠/g, '@')     // 中文艾特符号 -> 英文艾特符号
+      .replace(/＆/g, '&')     // 中文和号 -> 英文和号
+      .replace(/＾/g, '^')     // 中文脱字符 -> 英文脱字符
+      .replace(/｛/g, '{')     // 中文左花括号 -> 英文左花括号
+      .replace(/｝/g, '}')     // 中文右花括号 -> 英文右花括号
+      .replace(/｀/g, '`')     // 中文反引号 -> 英文反引号
+      .replace(/～/g, '~');    // 中文波浪号 -> 英文波浪号
+  };
   
   // 将任意时间值格式化为 HH:mm 字符串
   const formatToHHmm = (timeValue) => {
@@ -122,11 +171,20 @@ const CalendarPage = () => {
     }
   };
 
-  // 获取所有演出
-  const fetchSchedules = async () => {
+  // 按月份获取演出
+  const fetchSchedulesByMonth = async (year, month) => {
+    const yearMonth = `${year}-${String(month).padStart(2, '0')}`;
+    
+    // 检查缓存中是否已有该月份的数据
+    if (monthCache.has(yearMonth)) {
+      const cachedData = monthCache.get(yearMonth);
+      setEvents(cachedData);
+      return;
+    }
+
     setLoading(true);
     try {
-      const data = await apiCall('/');
+      const data = await apiCall(`/month/?month=${yearMonth}`);
       
       // 直接使用后端数据，不进行转换
       const formatTimeFromBackend = (timeValue) => {
@@ -135,26 +193,30 @@ const CalendarPage = () => {
         return String(timeValue);
       };
 
-      const formattedEvents = data.map(event => ({
+      const formattedEvents = (data || []).map(event => ({
         _id: event._id || event.id,
         location: event.location,
+        city: event.city,
         date: event.date,
-        entryTime: formatTimeFromBackend(event.entry_time), // 确保是"14:00"格式
-        startTime: formatTimeFromBackend(event.start_time), // 确保是"14:00"格式
         title: event.title,
+        groups: event.groups || [],
+        imgs: event.imgs || [],
         timeTable: (event.timetable || []).map(item => ({
           group: item.group,
           startTime: formatTimeFromBackend(item.start_time), // 确保是"14:00"格式
-          endTime: formatTimeFromBackend(item.end_time)      // 确保是"14:00"格式
-        })),
-        specialEvents: (event.special_events || []).map(item => ({
-          group: item.group,
-          startTime: formatTimeFromBackend(item.start_time), // 确保是"14:00"格式
-          endTime: formatTimeFromBackend(item.end_time)      // 确保是"14:00"格式
+          endTime: formatTimeFromBackend(item.end_time),     // 确保是"14:00"格式
+          bonusTime: item.bonus_time || '',                 // 特典时间字符串
+          selectedTypes: item.bonus_time ? item.bonus_time.split('-').filter(Boolean) : [] // 特典类型数组
         })),
         updateTime: event.updated_at || event.created_at
       }));
       
+      // 将数据存入缓存
+      setMonthCache(prevCache => {
+        const newCache = new Map(prevCache);
+        newCache.set(yearMonth, formattedEvents);
+        return newCache;
+      });
       
       setEvents(formattedEvents);
     } catch (error) {
@@ -169,9 +231,19 @@ const CalendarPage = () => {
   };
 
   // 创建演出
-  const createSchedule = async (scheduleData) => {
+  const createSchedule = async (formData) => {
     try {
-      const data = await apiCall('/create/', 'POST', scheduleData);
+      const response = await fetch(`${config.API_BASE_URL}/schedule/create/`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || errorData.detail || '创建演出失败');
+      }
+
+      const data = await response.json();
       
       // 直接使用后端数据，不进行转换
       const formatTimeFromBackend = (timeValue) => {
@@ -182,25 +254,31 @@ const CalendarPage = () => {
       const formattedEvent = {
         _id: data._id || data.id,
         location: data.location,
+        city: data.city,
         date: data.date,
-        entryTime: formatTimeFromBackend(data.entry_time), // 确保是"14:00"格式
-        startTime: formatTimeFromBackend(data.start_time), // 确保是"14:00"格式
         title: data.title,
+        groups: data.groups || [],
+        imgs: data.imgs || [],
         timeTable: (data.timetable || []).map(item => ({
           group: item.group,
-          startTime: formatTimeFromBackend(item.start_time), // 确保是"14:00"格式
-          endTime: formatTimeFromBackend(item.end_time)      // 确保是"14:00"格式
-        })),
-        specialEvents: (data.special_events || []).map(item => ({
-          group: item.group,
-          startTime: formatTimeFromBackend(item.start_time), // 确保是"14:00"格式
-          endTime: formatTimeFromBackend(item.end_time)      // 确保是"14:00"格式
+          startTime: formatTimeFromBackend(item.start_time),
+          endTime: formatTimeFromBackend(item.end_time),
+          bonusTime: item.bonus_time || '',
+          selectedTypes: item.bonus_time ? item.bonus_time.split('-').filter(Boolean) : []
         })),
         updateTime: data.updated_at || data.created_at
       };
       
-      console.log('转换后的新演出数据:', formattedEvent);
       setEvents(prev => [...prev, formattedEvent]);
+      
+      // 清除相关月份的缓存
+      const eventDate = new Date(formattedEvent.date);
+      const eventYearMonth = `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, '0')}`;
+      setMonthCache(prevCache => {
+        const newCache = new Map(prevCache);
+        newCache.delete(eventYearMonth);
+        return newCache;
+      });
       Notification.success({
         title: '创建成功',
         content: '演出已成功添加到日历',
@@ -217,13 +295,22 @@ const CalendarPage = () => {
   };
 
   // 更新演出
-  const updateSchedule = async (scheduleId, scheduleData) => {
+  const updateSchedule = async (scheduleId, formData) => {
     try {
-      const data = await apiCall(`/update/${scheduleId}/`, 'PUT', scheduleData);
+      const response = await fetch(`${config.API_BASE_URL}/schedule/update/${scheduleId}/`, {
+        method: 'PUT',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || '更新演出失败');
+      }
+
+      const data = await response.json();
       
       // 直接使用后端数据，不进行转换
       const formatTimeFromBackend = (timeValue) => {
-        console.log('formatTimeFromBackend 输入:', timeValue, '类型:', typeof timeValue);
         if (!timeValue) return '';
         return String(timeValue);
       };
@@ -231,24 +318,31 @@ const CalendarPage = () => {
       const formattedEvent = {
         _id: data._id || data.id,
         location: data.location,
+        city: data.city,
         date: data.date,
-        entryTime: formatTimeFromBackend(data.entry_time), // 确保是"14:00"格式
-        startTime: formatTimeFromBackend(data.start_time), // 确保是"14:00"格式
         title: data.title,
+        groups: data.groups || [],
+        imgs: data.imgs || [],
         timeTable: (data.timetable || []).map(item => ({
           group: item.group,
-          startTime: formatTimeFromBackend(item.start_time), // 确保是"14:00"格式
-          endTime: formatTimeFromBackend(item.end_time)      // 确保是"14:00"格式
-        })),
-        specialEvents: (data.special_events || []).map(item => ({
-          group: item.group,
-          startTime: formatTimeFromBackend(item.start_time), // 确保是"14:00"格式
-          endTime: formatTimeFromBackend(item.end_time)      // 确保是"14:00"格式
+          startTime: formatTimeFromBackend(item.start_time),
+          endTime: formatTimeFromBackend(item.end_time),
+          bonusTime: item.bonus_time || '',
+          selectedTypes: item.bonus_time ? item.bonus_time.split('-').filter(Boolean) : []
         })),
         updateTime: data.updated_at || data.created_at
       };
       
       setEvents(prev => prev.map(event => event._id === scheduleId ? formattedEvent : event));
+      
+      // 清除相关月份的缓存
+      const eventDate = new Date(formattedEvent.date);
+      const eventYearMonth = `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, '0')}`;
+      setMonthCache(prevCache => {
+        const newCache = new Map(prevCache);
+        newCache.delete(eventYearMonth);
+        return newCache;
+      });
       Notification.success({
         title: '更新成功',
         content: '演出信息已更新',
@@ -267,8 +361,22 @@ const CalendarPage = () => {
   // 删除演出
   const deleteSchedule = async (scheduleId) => {
     try {
+      // 先获取要删除的演出信息，用于清除缓存
+      const eventToDelete = events.find(event => event._id === scheduleId);
+      
       await apiCall(`/delete/${scheduleId}/`, 'DELETE');
       setEvents(prev => prev.filter(event => event._id !== scheduleId));
+      
+      // 清除相关月份的缓存
+      if (eventToDelete) {
+        const eventDate = new Date(eventToDelete.date);
+        const eventYearMonth = `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, '0')}`;
+        setMonthCache(prevCache => {
+          const newCache = new Map(prevCache);
+          newCache.delete(eventYearMonth);
+          return newCache;
+        });
+      }
       Notification.success({
         title: '删除成功',
         content: '演出已从日历中删除',
@@ -284,9 +392,37 @@ const CalendarPage = () => {
     }
   };
 
+  // 当前显示的月份状态
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  });
+
+  // 月份数据缓存
+  const [monthCache, setMonthCache] = useState(new Map());
+
   // 组件挂载时获取数据
   useEffect(() => {
-    fetchSchedules();
+    fetchSchedulesByMonth(currentMonth.year, currentMonth.month);
+  }, [currentMonth]);
+
+  // 页面卸载时清除缓存和ObjectURL
+  useEffect(() => {
+    return () => {
+      setMonthCache(new Map());
+      
+      // 清理所有ObjectURL
+      if (newEvent.images) {
+        newEvent.images.forEach(img => {
+          if (img.url && img.url.startsWith('blob:')) {
+            try {
+              URL.revokeObjectURL(img.url);
+            } catch (error) {
+            }
+          }
+        });
+      }
+    };
   }, []);
 
   // 获取指定日期的演出
@@ -322,7 +458,6 @@ const CalendarPage = () => {
 
   // 处理日期点击
   const handleDateClick = (date) => {
-    console.log('Date clicked:', date);
     setSelectedDate(date);
   };
 
@@ -332,63 +467,197 @@ const CalendarPage = () => {
     setViewModalVisible(true);
   };
 
-  // 添加演出时间表项目
-  const addTimeTableItem = () => {
-    setTimeTableItems([...timeTableItems, { group: '', startTime: '', endTime: '' }]);
+  // 处理图片点击
+  const handleImageClick = (img) => {
+    setPreviewImage(img);
+    setImageScale(1);
+    setImagePosition({ x: 0, y: 0 });
+    setImagePreviewVisible(true);
   };
 
-  // 删除演出时间表项目
-  const removeTimeTableItem = (index) => {
-    const newItems = timeTableItems.filter((_, i) => i !== index);
-    setTimeTableItems(newItems);
-  };
-
-  // 添加特典会项目
-  const addSpecialEventsItem = () => {
-    setSpecialEventsItems([...specialEventsItems, { group: '', selectedTypes: [] }]);
-  };
-
-  // 删除特典会项目
-  const removeSpecialEventsItem = (index) => {
-    const newItems = specialEventsItems.filter((_, i) => i !== index);
-    setSpecialEventsItems(newItems);
-  };
-
-  // 切换特典会类型选择
-  const toggleSpecialEventType = (index, timeType) => {
-    const newItems = [...specialEventsItems];
-    const currentTypes = newItems[index].selectedTypes || [];
-    
-    if (currentTypes.includes(timeType)) {
-      // 如果已选中，则取消选择
-      newItems[index].selectedTypes = currentTypes.filter(type => type !== timeType);
+  // 处理图片点击切换缩放
+  const handleImageToggleZoom = (e) => {
+    e.stopPropagation();
+    if (imageScale === 1) {
+      setImageScale(2);
+      setImagePosition({ x: 0, y: 0 });
     } else {
-      // 如果未选中，则添加选择
-      newItems[index].selectedTypes = [...currentTypes, timeType];
+      setImageScale(1);
+      setImagePosition({ x: 0, y: 0 });
     }
+  };
+
+  // 处理滚轮滚动
+  const handleWheel = (e) => {
+    e.preventDefault();
+    if (imageScale > 1) {
+      const deltaY = e.deltaY;
+      const newY = imagePosition.y - deltaY * 0.5;
+      
+      // 计算图片的实际高度（考虑缩放）
+      const imageElement = e.target;
+      const imageHeight = imageElement.naturalHeight * imageScale;
+      const viewportHeight = window.innerHeight;
+      
+      // 限制滚动范围，不超出图片上下边界
+      const maxY = Math.max(0, (imageHeight - viewportHeight) / 2);
+      const minY = -maxY;
+      
+      setImagePosition(prev => ({
+        x: prev.x,
+        y: Math.max(minY, Math.min(maxY, newY))
+      }));
+    }
+  };
+
+  // 处理拖拽
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    const startX = e.clientX - imagePosition.x;
+    const startY = e.clientY - imagePosition.y;
+
+    const handleMouseMove = (e) => {
+      const newX = e.clientX - startX;
+      const newY = e.clientY - startY;
+      
+      // 计算边界限制
+      const imageElement = e.target;
+      const imageWidth = imageElement.naturalWidth * imageScale;
+      const imageHeight = imageElement.naturalHeight * imageScale;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      const maxX = Math.max(0, (imageWidth - viewportWidth) / 2);
+      const minX = -maxX;
+      const maxY = Math.max(0, (imageHeight - viewportHeight) / 2);
+      const minY = -maxY;
+      
+      setImagePosition({
+        x: Math.max(minX, Math.min(maxX, newX)),
+        y: Math.max(minY, Math.min(maxY, newY))
+      });
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  // 添加演出团体
+  const addGroup = () => {
+    setNewEvent(prev => ({
+      ...prev,
+      groups: [...prev.groups, { name: '' }]
+    }));
+  };
+
+  // 删除演出团体
+  const removeGroup = (index) => {
+    setNewEvent(prev => ({
+      ...prev,
+      groups: prev.groups.filter((_, i) => i !== index)
+    }));
+  };
+
+  // 更新演出团体
+  const updateGroup = (index, field, value) => {
+    setNewEvent(prev => ({
+      ...prev,
+      groups: (prev.groups || []).map((group, i) =>
+        i === index ? { ...group, [field]: value } : group
+      )
+    }));
+  };
+
+  // 处理图片上传
+  const handleImageUpload = (fileList) => {
+    // 确保 fileList 是数组
+    const files = Array.isArray(fileList) ? fileList : [fileList].filter(Boolean);
     
-    setSpecialEventsItems(newItems);
+    setNewEvent(prev => ({
+      ...prev,
+      images: [
+        // 保留已存在的图片
+        ...(prev.images || []).filter(img => img.isExisting),
+        // 添加新上传的图片
+        ...files.map(file => {
+          // 尝试多种方式获取文件对象
+          let fileObj = null;
+          let previewUrl = '';
+          
+          // 方式1: 从 currentFile 获取
+          if (file.currentFile && file.currentFile.fileInstance) {
+            fileObj = file.currentFile.fileInstance;
+            previewUrl = file.currentFile.url || '';
+          }
+          // 方式2: 从 originFileObj 获取
+          else if (file.originFileObj) {
+            fileObj = file.originFileObj;
+          }
+          // 方式3: 从 file 属性获取
+          else if (file.file) {
+            fileObj = file.file;
+          }
+          // 方式4: 直接使用 file
+          else if (file instanceof File) {
+            fileObj = file;
+          }
+          
+          // 如果没有获取到文件对象，尝试创建预览URL
+          if (!previewUrl && fileObj && (fileObj instanceof File || fileObj instanceof Blob)) {
+            try {
+              previewUrl = URL.createObjectURL(fileObj);
+            } catch (error) {
+              previewUrl = '';
+            }
+          }
+          
+          // 如果还是没有预览URL，使用文件自带的URL
+          if (!previewUrl && file.url) {
+            previewUrl = file.url;
+          }
+          
+          return {
+            name: file.name,
+            url: previewUrl,
+            file: fileObj,
+            content_type: file.type || 'image/jpeg',
+            status: file.status || 'done',
+            isExisting: false // 标记为新上传的图片
+          };
+        })
+      ]
+    }));
+  };
+
+  // 删除图片
+  const removeImage = (index) => {
+    setNewEvent(prev => {
+      const newImages = [...prev.images];
+      const removedImage = newImages[index];
+      
+      // 释放ObjectURL避免内存泄漏（仅对新上传的图片）
+      if (removedImage && !removedImage.isExisting && removedImage.url && removedImage.url.startsWith('blob:')) {
+        try {
+          URL.revokeObjectURL(removedImage.url);
+        } catch (error) {
+        }
+      }
+      
+      return {
+        ...prev,
+        images: newImages.filter((_, i) => i !== index)
+      };
+    });
   };
 
   // 添加新演出
   const handleAddEvent = async (values) => {
-    console.log('表单提交数据:', values);
-    console.log('时间表项目:', timeTableItems);
-    console.log('特典会项目:', specialEventsItems);
-    
     try {
-      // 处理特典会数据
-      const processedSpecialEvents = specialEventsItems
-        .filter(item => item.group && item.selectedTypes && item.selectedTypes.length > 0)
-        .map(item => {
-          const timeStr = item.selectedTypes.join('-');
-          return {
-            group: item.group,
-            startTime: timeStr,
-            endTime: timeStr
-          };
-        });
-      
       // 处理日期格式，统一为 YYYY-MM-DD
       const dateStr = formatDateToYMD(values.date);
       if (!dateStr) throw new Error('日期字段不能为空');
@@ -399,38 +668,61 @@ const CalendarPage = () => {
         return v;
       };
       
-      const entryTimeFormatted = formatTime(values.entryTime);
-      const startTimeFormatted = formatTime(values.startTime);
+      // 创建 FormData 对象
+      const formData = new FormData();
       
-      const scheduleData = {
-        location: String(values.location || ''),
-        date: String(dateStr),
-        entry_time: entryTimeFormatted, // 确保是字符串
-        start_time: startTimeFormatted, // 确保是字符串
-        title: String(values.title || ''),
-        timetable: timeTableItems.filter(item => item.group && item.startTime && item.endTime).map(item => ({
-          group: String(item.group),
-          start_time: formatTime(item.startTime),
-          end_time: formatTime(item.endTime)
-        })),
-        special_events: processedSpecialEvents.map(item => ({
-          group: String(item.group),
-          start_time: formatTime(item.startTime),
-          end_time: formatTime(item.endTime)
-        }))
-      };
+      // 添加基本字段
+      formData.append('city', String(convertChinesePunctuation(String(values.city || '上海'))));
+      formData.append('location', String(convertChinesePunctuation(String(values.location || ''))));
+      formData.append('date', String(dateStr));
+      formData.append('title', String(convertChinesePunctuation(String(values.title || ''))));
+      
+      // 添加演出团体 - 允许为空数组，直接传递团体名字符串数组
+      const groups = (values.groups || []).map(group => 
+        convertChinesePunctuation(String(group.name || ''))
+      ).filter(name => name.trim() !== ''); // 过滤掉空字符串
+      
+      // groups可以为空数组，直接发送字符串数组
+      groups.forEach(group => {
+        formData.append('groups', group);
+      });
+      
+      // 添加图片文件 - 后端从 request.FILES.getlist("imgs") 获取
+      (values.images || []).forEach((img) => {
+        // 只处理新上传的图片文件
+        if (!img.isExisting && img.file && (img.file instanceof File || img.file instanceof Blob)) {
+          formData.append('imgs', img.file, img.name);
+        }
+      });
+      
+      // 添加所有图片的完整信息（包括已存在的和新上传的）
+      const allImages = (values.images || []).map(img => ({
+        filename: img.filename || img.name,
+        url: img.isExisting ? img.originalUrl : null,
+        isExisting: img.isExisting,
+        content_type: img.content_type
+      }));
+      
+      formData.append('images_info', JSON.stringify(allImages));
+      
+      // 添加调试信息
+      console.log('All images info:', allImages);
+      
+      // 添加调试信息
+      console.log('FormData contents:');
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
       
       if (editingId) {
-        await updateSchedule(editingId, scheduleData);
+        await updateSchedule(editingId, formData);
       } else {
-        await createSchedule(scheduleData);
+        await createSchedule(formData);
       }
       setModalVisible(false);
       setEditingId(null);
       
       // 清空表单状态
-      setTimeTableItems([]);
-      setSpecialEventsItems([]);
     } catch (error) {
       Notification.error({
         title: '添加失败',
@@ -500,9 +792,7 @@ const CalendarPage = () => {
                   type="primary" 
                   icon={<IconPlus />}
                   onClick={() => {
-                    setNewEvent({ title: '', date: formatDateToYMD(selectedDate), entryTime: '', startTime: '', location: '' });
-                    setTimeTableItems([]);
-                    setSpecialEventsItems([]);
+                    setNewEvent({ title: '', date: formatDateToYMD(selectedDate), location: '', city: '', groups: [], images: [] });
                     setModalVisible(true);
                   }}
                   size="large"
@@ -523,7 +813,11 @@ const CalendarPage = () => {
                     <Button 
                       size="small" 
                       type="tertiary"
-                      onClick={() => setSelectedDate(new Date())}
+                      onClick={() => {
+                        const now = new Date();
+                        setSelectedDate(now);
+                        setCurrentMonth({ year: now.getFullYear(), month: now.getMonth() + 1 });
+                      }}
                       style={{ marginLeft: 'auto' }}
                     >
                       回到本月
@@ -541,6 +835,7 @@ const CalendarPage = () => {
                     const newDate = new Date(selectedDate);
                     newDate.setMonth(newDate.getMonth() - 1);
                     setSelectedDate(newDate);
+                    setCurrentMonth({ year: newDate.getFullYear(), month: newDate.getMonth() + 1 });
                   }}
                 >
                   ←
@@ -553,6 +848,7 @@ const CalendarPage = () => {
                     const newDate = new Date(selectedDate);
                     newDate.setMonth(newDate.getMonth() + 1);
                     setSelectedDate(newDate);
+                    setCurrentMonth({ year: newDate.getFullYear(), month: newDate.getMonth() + 1 });
                   }}
                 >
                   →
@@ -595,20 +891,15 @@ const CalendarPage = () => {
                       onClick={() => handleEventClick(event)}
                     >
                       <div className="event-title">{event.title}</div>
-                          <div className="event-detail">
-                            <IconClock /> {event.entryTime ? `入场: ${event.entryTime} | ` : ''}开始: {event.startTime}
-                          </div>
+                      <div className="event-detail">
+                        <IconCalendar /> {event.date}
+                      </div>
                       <div className="event-detail">
                         <IconMapPin /> {event.location}
                       </div>
                       <div className="event-detail">
-                        <IconUser /> {event.timeTable.length} 个团体
+                        <IconUser /> {event.groups ? event.groups.length : 0} 个团体
                       </div>
-                      {event.specialEvents && event.specialEvents.length > 0 && (
-                        <div className="event-detail" style={{ color: 'var(--semi-color-warning)' }}>
-                          ⭐ {event.specialEvents.length} 个特典会
-                        </div>
-                      )}
                     </Card>
                   ))}
                 </Space>
@@ -657,15 +948,12 @@ const CalendarPage = () => {
           visible={modalVisible}
           onCancel={() => {
             setModalVisible(false);
-            setTimeTableItems([]);
-            setSpecialEventsItems([]);
-            setNewEvent({ title: '', date: null, entryTime: '', startTime: '', location: '' });
+            setNewEvent({ title: '', date: null, location: '', city: '', groups: [], images: [] });
             setEditingId(null);
           }}
           footer={null}
           width={800}
         >
-        <div>
           {/* 基本信息 */}
           <div style={{ fontWeight: 600, margin: '8px 0' }}>基本信息</div>
           
@@ -690,94 +978,48 @@ const CalendarPage = () => {
           />
           
           <div style={{ marginBottom: '8px' }}>
-            <label style={{ fontWeight: 600, color: 'var(--semi-color-text-0)' }}>入场时间</label>
-            <span style={{ fontSize: '12px', color: 'var(--semi-color-text-2)', marginLeft: '4px' }}>（可选）</span>
-          </div>
-          <TimePicker
-            format="HH:mm"
-            placeholder="请选择入场时间"
-            value={newEvent.entryTime || undefined}
-            onChange={val => setNewEvent(prev => ({ ...prev, entryTime: formatToHHmm(val) }))}
-            style={{ width: '100%', marginBottom: '16px' }}
-          />
-          
-          <div style={{ marginBottom: '8px' }}>
-            <label style={{ fontWeight: 600, color: 'var(--semi-color-text-0)' }}>开始时间 *</label>
-          </div>
-          <TimePicker
-            format="HH:mm"
-            placeholder="请选择开始时间"
-            value={newEvent.startTime || undefined}
-            onChange={val => setNewEvent(prev => ({ ...prev, startTime: formatToHHmm(val) }))}
-            style={{ width: '100%', marginBottom: '16px' }}
-          />
-          
-          <div style={{ marginBottom: '8px' }}>
             <label style={{ fontWeight: 600, color: 'var(--semi-color-text-0)' }}>演出地点 *</label>
           </div>
           <Input
             placeholder="请输入演出地点"
             value={newEvent.location}
             onChange={val => setNewEvent(prev => ({ ...prev, location: val }))}
+            style={{ marginBottom: '16px' }}
+          />
+          
+          <div style={{ marginBottom: '8px' }}>
+            <label style={{ fontWeight: 600, color: 'var(--semi-color-text-0)' }}>城市</label>
+            <span style={{ fontSize: '12px', color: 'var(--semi-color-text-2)', marginLeft: '4px' }}>（可选）</span>
+          </div>
+          <Input
+            placeholder="请输入城市"
+            value={newEvent.city}
+            onChange={val => setNewEvent(prev => ({ ...prev, city: val }))}
             style={{ marginBottom: '20px' }}
           />
           
-          {/* 演出时间表 */}
-          <div style={{ fontWeight: 600, margin: '8px 0' }}>演出时间表</div>
+          {/* 演出团体 */}
+          <div style={{ fontWeight: 600, margin: '8px 0' }}>演出团体 <span style={{ fontSize: '12px', color: 'var(--semi-color-text-2)', marginLeft: '4px' }}>（可选）</span></div>
             <div style={{ marginBottom: '16px' }}>
               <Space vertical style={{ width: '100%' }}>
-                {timeTableItems.map((item, index) => (
-                  <Card key={index} size="small" style={{ backgroundColor: 'var(--semi-color-fill-0)', width: '100%' }}>
-                    <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                        <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--semi-color-text-1)', marginBottom: '4px' }}>团体名称</label>
-                        <Input
-                          placeholder="团体名称"
-                          style={{ width: '150px' }}
-                          value={item.group}
-                          onChange={val => {
-                            const newItems = [...timeTableItems];
-                            newItems[index].group = val;
-                            setTimeTableItems(newItems);
-                          }}
-                        />
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                        <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--semi-color-text-1)', marginBottom: '4px' }}>开始时间</label>
-                        <TimePicker
-                          placeholder="开始时间"
-                          style={{ width: '120px' }}
-                          format="HH:mm"
-                          value={item.startTime || undefined}
-                          onChange={val => {
-                            const newItems = [...timeTableItems];
-                            newItems[index].startTime = formatToHHmm(val);
-                            setTimeTableItems(newItems);
-                          }}
-                          type="time"
-                        />
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                        <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--semi-color-text-1)', marginBottom: '4px' }}>结束时间</label>
-                        <TimePicker
-                          placeholder="结束时间"
-                          style={{ width: '120px' }}
-                          format="HH:mm"
-                          value={item.endTime || undefined}
-                          onChange={val => {
-                            const newItems = [...timeTableItems];
-                            newItems[index].endTime = formatToHHmm(val);
-                            setTimeTableItems(newItems);
-                          }}
-                          type="time"
-                        />
-                      </div>
+              {(newEvent.groups || []).map((group, index) => (
+                <Card key={index} size="small" style={{ backgroundColor: 'var(--semi-color-fill-0)', width: '100%' }}>
+                 <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', flex: 1 }}>
+                     <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--semi-color-text-1)', marginBottom: '4px' }}>团体名称</label>
+                      <Input
+                       placeholder="请输入团体名称"
+                       style={{ width: '300px' }}
+                       value={group.name}
+                       onChange={val => updateGroup(index, 'name', val)}
+                     />
+                   </div>
                       <Button
                         type="tertiary"
                         icon={<IconClose />}
                         size="small"
-                        onClick={() => removeTimeTableItem(index)}
-                        style={{ marginTop: '20px' }}
+                     onClick={() => removeGroup(index)}
+                     style={{ marginTop: '20px' }}
                       />
                     </Space>
                   </Card>
@@ -785,84 +1027,109 @@ const CalendarPage = () => {
                 <Button
                   type="tertiary"
                   icon={<IconPlus />}
-                  onClick={addTimeTableItem}
+                onClick={addGroup}
                   style={{ width: '100%' }}
                 >
-                  添加演出时间
+                添加演出团体
                 </Button>
               </Space>
             </div>
           
-
-          {/* 特典会 */}
-          <div style={{ fontWeight: 600, margin: '8px 0' }}>特典会</div>
+          {/* 演出图片 */}
+          <div style={{ fontWeight: 600, margin: '8px 0' }}>演出图片</div>
+          
+          {/* 显示已存在的图片 */}
+          {newEvent.images && newEvent.images.length > 0 && (
             <div style={{ marginBottom: '16px' }}>
-              <Space vertical style={{ width: '100%' }}>
-                {specialEventsItems.map((item, index) => (
-                  <Card key={index} size="small" style={{ backgroundColor: 'var(--semi-color-warning-light)', width: '100%' }}>
-                    <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                        <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--semi-color-text-1)', marginBottom: '4px' }}>团体名称</label>
-                        <Input
-                          placeholder="团体名称"
-                          style={{ width: '150px' }}
-                          value={item.group}
-                          onChange={val => {
-                            const newItems = [...specialEventsItems];
-                            newItems[index].group = val;
-                            setSpecialEventsItems(newItems);
-                          }}
-                        />
+              <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--semi-color-text-1)', marginBottom: '8px' }}>
+                当前图片 ({newEvent.images.length}张)
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '8px' }}>
+                {newEvent.images.map((img, index) => (
+                  <div key={index} style={{ position: 'relative' }}>
+                    <img 
+                      src={img.url}
+                      alt={img.name}
+                      style={{ 
+                        width: '100%', 
+                        height: '100px', 
+                        objectFit: 'cover', 
+                        borderRadius: '4px',
+                        border: '1px solid var(--semi-color-border)'
+                      }}
+                    />
+                    <Button
+                      type="tertiary"
+                      icon={<IconClose />}
+                      size="small"
+                      onClick={() => removeImage(index)}
+                      style={{
+                        position: 'absolute',
+                        top: '4px',
+                        right: '4px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                        border: 'none',
+                        minWidth: '20px',
+                        height: '20px',
+                        padding: '0'
+                      }}
+                    />
+                    {img.isExisting && (
+                      <div style={{
+                        position: 'absolute',
+                        bottom: '4px',
+                        left: '4px',
+                        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                        color: 'white',
+                        fontSize: '10px',
+                        padding: '2px 4px',
+                        borderRadius: '2px'
+                      }}>
+                        已存在
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                        <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--semi-color-text-1)', marginBottom: '4px' }}>特典类型</label>
-                        <Space>
-                          <Button
-                            size="small"
-                            type={item.selectedTypes?.includes('前特') ? 'primary' : 'tertiary'}
-                            onClick={() => toggleSpecialEventType(index, '前特')}
-                            style={{ fontSize: '12px', padding: '4px 8px' }}
-                          >
-                            前特
-                          </Button>
-                          <Button
-                            size="small"
-                            type={item.selectedTypes?.includes('平特') ? 'primary' : 'tertiary'}
-                            onClick={() => toggleSpecialEventType(index, '平特')}
-                            style={{ fontSize: '12px', padding: '4px 8px' }}
-                          >
-                            平特
-                          </Button>
-                          <Button
-                            size="small"
-                            type={item.selectedTypes?.includes('终特') ? 'primary' : 'tertiary'}
-                            onClick={() => toggleSpecialEventType(index, '终特')}
-                            style={{ fontSize: '12px', padding: '4px 8px' }}
-                          >
-                            终特
-                          </Button>
-                        </Space>
-                      </div>
-                      <Button
-                        type="tertiary"
-                        icon={<IconClose />}
-                        size="small"
-                        onClick={() => removeSpecialEventsItem(index)}
-                        style={{ marginTop: '20px' }}
-                      />
-                    </Space>
-                  </Card>
+                    )}
+                  </div>
                 ))}
-                <Button
-                  type="tertiary"
-                  icon={<IconPlus />}
-                  onClick={addSpecialEventsItem}
-                  style={{ width: '100%' }}
-                >
-                  添加特典会
-                </Button>
-              </Space>
+              </div>
             </div>
+          )}
+          
+          {/* 上传新图片 */}
+          <div style={{ marginBottom: '16px' }}>
+            <Upload
+              accept="image/*"
+              multiple
+              action=""
+              showUploadList={{
+                showRemoveIcon: true,
+                showPreviewIcon: true,
+                showDownloadIcon: false
+              }}
+              beforeUpload={() => false}
+              onChange={(fileList, file) => {
+                handleImageUpload(fileList);
+              }}
+            >
+              <div style={{ 
+                border: '2px dashed var(--semi-color-border)',
+                borderRadius: '8px',
+                padding: '20px',
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}>
+                <IconUpload size="large" style={{ color: 'var(--semi-color-primary)', marginBottom: '8px' }} />
+                <div>
+                  <Text strong style={{ fontSize: '14px', display: 'block', marginBottom: '4px' }}>
+                    点击或拖拽上传演出图片
+                  </Text>
+                  <Text type="tertiary" style={{ fontSize: '12px' }}>
+                    支持 JPG、PNG、GIF 格式，可上传多张图片
+                  </Text>
+                </div>
+              </div>
+            </Upload>
+          </div>
           
 
           <div>
@@ -881,23 +1148,14 @@ const CalendarPage = () => {
                     Notification.warning({ title: '请选择演出日期', duration: 3 });
                     return;
                   }
-                  if (!newEvent.startTime) {
-                    Notification.warning({ title: '请选择开始时间', duration: 3 });
-                    return;
-                  }
-                  if (!newEvent.location) {
-                    Notification.warning({ title: '请填写演出地点', duration: 3 });
-                    return;
-                  }
                   await handleAddEvent({ ...newEvent });
-                  setNewEvent({ title: '', date: null, entryTime: '', startTime: '', location: '' });
+                  setNewEvent({ title: '', date: null, location: '', city: '', groups: [], images: [] });
                 }}
               >
                 {editingId ? '更新' : '添加'}
               </Button>
               
             </Space>
-          </div>
         </div>
         </Modal>
       )}
@@ -909,57 +1167,89 @@ const CalendarPage = () => {
           visible={viewModalVisible}
           onCancel={() => setViewModalVisible(false)}
           footer={null}
-          width={500}
+          width={600}
         >
           <div>
-            {viewEvent.entryTime && <p><IconClock /> 入场时间: {viewEvent.entryTime}</p>}
             <p><IconCalendar /> 日期: {viewEvent.date}</p>
-            <p><IconClock /> 开始时间: {viewEvent.startTime}</p>
             <p><IconMapPin /> 地点: {viewEvent.location}</p>
+            {viewEvent.city && <p><IconMapPin /> 城市: {viewEvent.city}</p>}
+            
+            {/* 演出团体 */}
             <div style={{ marginTop: '16px' }}>
-              <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>演出时间表:</div>
-              {viewEvent.timeTable.map((item, index) => (
-                <div key={index} style={{ 
-                  marginBottom: '8px', 
-                  padding: '8px', 
-                  backgroundColor: 'var(--semi-color-fill-0)', 
-                  borderRadius: '4px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <div style={{ fontWeight: 'bold' }}>{item.group}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--semi-color-text-2)' }}>
-                    {item.startTime} - {item.endTime}
-                  </div>
-                </div>
-              ))}
+              <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>演出团体:</div>
+              {viewEvent.groups && viewEvent.groups.length > 0 ? (
+                <Space wrap>
+                  {viewEvent.groups.map((group, index) => (
+                    <Tag key={index} color="blue" size="large">
+                      {typeof group === 'string' ? group : group.name}
+                    </Tag>
+                  ))}
+                </Space>
+              ) : (
+                <Text type="tertiary">暂无演出团体</Text>
+              )}
             </div>
-            {viewEvent.specialEvents && viewEvent.specialEvents.length > 0 && (
-              <div style={{ marginTop: '16px' }}>
-                <div style={{ fontWeight: 'bold', marginBottom: '8px', color: 'var(--semi-color-warning)' }}>特典会:</div>
-                {viewEvent.specialEvents.map((item, index) => {
-                  const isTimeFormat = /^\d{2}:\d{2}$/.test(item.startTime) && /^\d{2}:\d{2}$/.test(item.endTime);
-                  const timeDisplay = isTimeFormat ? `${item.startTime} - ${item.endTime}` : item.startTime;
-                  return (
-                    <div key={index} style={{ 
-                      marginBottom: '8px', 
-                      padding: '8px', 
-                      backgroundColor: 'var(--semi-color-warning-light)', 
-                      borderRadius: '4px',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}>
-                      <div style={{ fontWeight: 'bold' }}>{item.group}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--semi-color-text-2)' }}>
-                        {timeDisplay}
+            
+            {/* 演出图片 */}
+            <div style={{ marginTop: '16px' }}>
+              <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>演出图片:</div>
+              {viewEvent.imgs && viewEvent.imgs.length > 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px' }}>
+                  {viewEvent.imgs.map((img, index) => (
+                    <div key={index} style={{ position: 'relative' }}>
+                      {img.url ? (
+                        <img 
+                          src={`${config.API_BASE_URL}${img.url}`}
+                          alt={img.filename}
+                          onClick={() => handleImageClick(img)}
+                          style={{ 
+                            width: '100%', 
+                            height: '120px', 
+                            objectFit: 'cover', 
+                            borderRadius: '8px',
+                            border: '1px solid var(--semi-color-border)',
+                            cursor: 'pointer'
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '100%',
+                          height: '120px',
+                          backgroundColor: 'var(--semi-color-fill-0)',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '1px solid var(--semi-color-border)'
+                        }}>
+                          <IconImage size="large" style={{ color: 'var(--semi-color-text-2)' }} />
+                        </div>
+                      )}
+                      <div style={{
+                        position: 'absolute',
+                        bottom: '4px',
+                        left: '4px',
+                        right: '4px',
+                        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                        color: 'white',
+                        fontSize: '10px',
+                        padding: '2px 4px',
+                        borderRadius: '4px',
+                        textAlign: 'center',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {img.filename}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : (
+                <Text type="tertiary">暂无演出图片</Text>
+              )}
+            </div>
+            
             {isEditorMode && (
               <div style={{ marginTop: '16px', textAlign: 'center', paddingBottom: '16px' }}>
                 <Space>
@@ -970,19 +1260,21 @@ const CalendarPage = () => {
                       setNewEvent({
                         title: viewEvent.title || '',
                         date: formatDateToYMD(viewEvent.date),
-                        entryTime: formatToHHmm(viewEvent.entryTime),
-                        startTime: formatToHHmm(viewEvent.startTime),
-                        location: viewEvent.location || ''
+                        location: viewEvent.location || '',
+                        city: viewEvent.city || '',
+                        groups: (viewEvent.groups || []).map(group => ({
+                          name: typeof group === 'string' ? group : group.name
+                        })),
+                        images: (viewEvent.imgs || []).map(img => ({
+                          name: img.filename,
+                          url: `${config.API_BASE_URL}${img.url}`,
+                          content_type: img.content_type,
+                          status: 'done',
+                          isExisting: true, // 标记为已存在的图片
+                          originalUrl: img.url, // 保存原始URL用于更新
+                          filename: img.filename // 保存文件名
+                        }))
                       });
-                      setTimeTableItems((viewEvent.timeTable || []).map(it => ({
-                        group: it.group || '',
-                        startTime: formatToHHmm(it.startTime),
-                        endTime: formatToHHmm(it.endTime)
-                      })));
-                      setSpecialEventsItems((viewEvent.specialEvents || []).map(it => ({
-                        group: it.group || '',
-                        selectedTypes: typeof it.startTime === 'string' ? (it.startTime.split('-').filter(Boolean)) : []
-                      })));
                       setEditingId(viewEvent._id);
                       setViewModalVisible(false);
                       setModalVisible(true);
@@ -1013,6 +1305,48 @@ const CalendarPage = () => {
             )}
           </div>
         </Modal>
+      )}
+
+      {/* 图片预览层 - 支持放大和滚动 */}
+      {imagePreviewVisible && previewImage && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            overflow: 'hidden'
+          }}
+          onClick={() => {
+            setImagePreviewVisible(false);
+            setPreviewImage(null);
+          }}
+          onWheel={handleWheel}
+        >
+          <img 
+            src={`${config.API_BASE_URL}${previewImage.url}`}
+            alt={previewImage.filename}
+            style={{ 
+              maxWidth: '100vw',
+              maxHeight: '100vh',
+              objectFit: 'contain',
+              cursor: imageScale === 1 ? 'zoom-in' : 'grab',
+              transform: `scale(${imageScale}) translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+              transformOrigin: 'center center',
+              transition: 'transform 0.1s ease-out'
+            }}
+            onClick={handleImageToggleZoom}
+            onMouseDown={imageScale > 1 ? handleMouseDown : undefined}
+            draggable={false}
+          />
+        </div>
       )}
     </div>
   );

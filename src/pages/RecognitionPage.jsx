@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Card, Button, Upload, Typography, Space, Row, Col, Spin, Notification, Table, Tag, Divider } from '@douyinfe/semi-ui';
+import { Card, Button, Upload, Typography, Space, Row, Col, Spin, Notification, Table, Tag, Divider, Empty } from '@douyinfe/semi-ui';
 import { IconUpload, IconImage, IconRefresh, IconTick, IconClose } from '@douyinfe/semi-icons';
+import { IllustrationConstruction, IllustrationConstructionDark } from '@douyinfe/semi-illustrations';
 import { getCurrentDomainConfig } from '../config';
 import config from '../config';
 
@@ -14,7 +15,7 @@ const RecognitionPage = () => {
   
   // 获取编辑者模式状态
   const domainConfig = getCurrentDomainConfig();
-  const isEditorMode = domainConfig.editorMode;
+  const isEditorMode = domainConfig?.editorMode ?? true;
 
   // 上传配置
   const uploadProps = {
@@ -286,7 +287,18 @@ const RecognitionPage = () => {
         演出表识别
       </Title>
       
-      {!isEditorMode && (
+      {/* 功能建设中提示 */}
+      <Empty
+        image={<IllustrationConstruction style={{ width: 150, height: 150 }} />}
+        darkModeImage={<IllustrationConstructionDark style={{ width: 150, height: 150 }} />}
+        title={'功能建设中'}
+        description="当前功能暂未开放，敬请期待。"
+      />
+      
+      {/* 原代码保留 - 注释掉以避免渲染 */}
+      {false && (
+        <>
+        {!isEditorMode && (
         <div style={{ 
           marginBottom: '24px', 
           padding: '16px', 
@@ -646,6 +658,8 @@ const RecognitionPage = () => {
           </Col>
         )}
       </Row>
+        </>
+      )}
     </div>
   );
 };
