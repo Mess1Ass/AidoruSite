@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Typography, Space, Row, Col, Modal, Form, Input, DatePicker, TimePicker, Notification, Upload, Tag } from '@douyinfe/semi-ui';
+import { Card, Button, Typography, Space, Row, Col, Modal, Form, Input, DatePicker, Notification, Upload, Tag } from '@douyinfe/semi-ui';
 import { IconPlus, IconCalendar, IconMapPin, IconClock, IconUser, IconChevronLeft, IconChevronRight, IconClose, IconUpload, IconImage } from '@douyinfe/semi-icons';
 import { getCurrentDomainConfig } from '../config';
 import config from '../config';
@@ -24,7 +24,6 @@ const CalendarPage = () => {
   const isEditorMode = domainConfig?.editorMode ?? true;
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [formApi, setFormApi] = useState(null);
   
   // 将中文标点转换为英文标点
   const convertChinesePunctuation = (text) => {
@@ -309,7 +308,7 @@ const CalendarPage = () => {
 
       const data = await response.json();
       
-      // 直接使用后端数据，不进行转换
+      // 直接使用后端数据，不进行转换FormData contents
       const formatTimeFromBackend = (timeValue) => {
         if (!timeValue) return '';
         return String(timeValue);
@@ -494,21 +493,39 @@ const CalendarPage = () => {
       const deltaY = e.deltaY;
       const newY = imagePosition.y - deltaY * 0.5;
       
-      // 计算图片的实际高度（考虑缩放）
-      const imageElement = e.target;
-      const imageHeight = imageElement.naturalHeight * imageScale;
-      const viewportHeight = window.innerHeight;
-      
-      // 限制滚动范围，不超出图片上下边界
-      const maxY = Math.max(0, (imageHeight - viewportHeight) / 2);
-      const minY = -maxY;
-      
-      setImagePosition(prev => ({
-        x: prev.x,
-        y: Math.max(minY, Math.min(maxY, newY))
-      }));
+      // 获取图片元素（通过查询选择器）
+      const imageElement = document.querySelector('img[src*="' + previewImage.url + '"]');
+      if (imageElement) {
+        const imageHeight = imageElement.naturalHeight * imageScale;
+        const viewportHeight = window.innerHeight;
+        
+        // 限制滚动范围，不超出图片上下边界
+        const maxY = Math.max(0, (imageHeight - viewportHeight) / 2);
+        const minY = -maxY;
+        
+        setImagePosition(prev => ({
+          x: prev.x,
+          y: Math.max(minY, Math.min(maxY, newY))
+        }));
+      }
     }
   };
+
+  // 设置滚轮事件监听器
+  useEffect(() => {
+    if (imagePreviewVisible && imageScale > 1) {
+      const handleWheelPassive = (e) => {
+        handleWheel(e);
+      };
+      
+      // 添加非被动事件监听器
+      document.addEventListener('wheel', handleWheelPassive, { passive: false });
+      
+      return () => {
+        document.removeEventListener('wheel', handleWheelPassive);
+      };
+    }
+  }, [imagePreviewVisible, imageScale, imagePosition.y]);
 
   // 处理拖拽
   const handleMouseDown = (e) => {
@@ -520,22 +537,24 @@ const CalendarPage = () => {
       const newX = e.clientX - startX;
       const newY = e.clientY - startY;
       
-      // 计算边界限制
-      const imageElement = e.target;
-      const imageWidth = imageElement.naturalWidth * imageScale;
-      const imageHeight = imageElement.naturalHeight * imageScale;
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      
-      const maxX = Math.max(0, (imageWidth - viewportWidth) / 2);
-      const minX = -maxX;
-      const maxY = Math.max(0, (imageHeight - viewportHeight) / 2);
-      const minY = -maxY;
-      
-      setImagePosition({
-        x: Math.max(minX, Math.min(maxX, newX)),
-        y: Math.max(minY, Math.min(maxY, newY))
-      });
+      // 获取图片元素（通过查询选择器）
+      const imageElement = document.querySelector('img[src*="' + previewImage.url + '"]');
+      if (imageElement) {
+        const imageWidth = imageElement.naturalWidth * imageScale;
+        const imageHeight = imageElement.naturalHeight * imageScale;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        const maxX = Math.max(0, (imageWidth - viewportWidth) / 2);
+        const minX = -maxX;
+        const maxY = Math.max(0, (imageHeight - viewportHeight) / 2);
+        const minY = -maxY;
+        
+        setImagePosition({
+          x: Math.max(minX, Math.min(maxX, newX)),
+          y: Math.max(minY, Math.min(maxY, newY))
+        });
+      }
     };
 
     const handleMouseUp = () => {
@@ -573,72 +592,185 @@ const CalendarPage = () => {
     }));
   };
 
+  // 创建图片对象的通用函数
+  const createImageObject = (file, fileObj, previewUrl, isExisting = false) => {
+    return {
+      name: file.name || file.filename,
+      url: previewUrl || '',
+      file: fileObj,
+      content_type: file.type || 'image/jpeg',
+      status: file.status || 'done',
+      isExisting: isExisting
+    };
+  };
+
+  // 提取文件对象和预览URL的通用函数
+  const extractFileObject = (file) => {
+    let fileObj = null;
+    let previewUrl = '';
+    
+    // 方式1: 从 currentFile.fileInstance 获取
+    if (file.currentFile && file.currentFile.fileInstance) {
+      fileObj = file.currentFile.fileInstance;
+      previewUrl = file.currentFile.url || '';
+    }
+    // 方式2: 从 originFileObj 获取
+    else if (file.originFileObj) {
+      fileObj = file.originFileObj;
+    }
+    // 方式3: 从 file 属性获取
+    else if (file.file) {
+      fileObj = file.file;
+    }
+    // 方式4: 直接使用 file
+    else if (file instanceof File) {
+      fileObj = file;
+    }
+    // 方式5: 从 currentFile 直接获取
+    else if (file.currentFile) {
+      fileObj = file.currentFile;
+      previewUrl = file.currentFile.url || '';
+    }
+    
+    // 方式6: 如果还是没有文件对象，尝试从其他属性获取
+    if (!fileObj) {
+      // 检查所有可能的文件属性
+      const possibleFileProps = ['fileInstance', 'raw', 'originFile', 'fileObj', 'fileData'];
+      for (const prop of possibleFileProps) {
+        if (file[prop] && (file[prop] instanceof File || file[prop] instanceof Blob)) {
+          fileObj = file[prop];
+          break;
+        }
+      }
+    }
+    
+    // 如果没有获取到文件对象，尝试创建预览URL
+    if (!previewUrl && fileObj && (fileObj instanceof File || fileObj instanceof Blob)) {
+      try {
+        previewUrl = URL.createObjectURL(fileObj);
+      } catch (error) {
+        previewUrl = '';
+      }
+    }
+    
+    // 如果还是没有预览URL，使用文件自带的URL
+    if (!previewUrl && file.url) {
+      previewUrl = file.url;
+    }
+    
+    return {
+      fileObj,
+      previewUrl
+    };
+  };
+
   // 处理图片上传
   const handleImageUpload = (fileList) => {
-    // 确保 fileList 是数组
-    const files = Array.isArray(fileList) ? fileList : [fileList].filter(Boolean);
+    // 处理 Semi UI 的文件列表结构
+    let files = [];
+    
+    if (fileList && typeof fileList === 'object') {
+      // 如果 fileList 有 fileList 属性，使用它
+      if (fileList.fileList && Array.isArray(fileList.fileList)) {
+        files = fileList.fileList;
+      }
+      // 如果 fileList 有 currentFile 属性，使用它
+      else if (fileList.currentFile) {
+        files = [fileList.currentFile];
+      }
+      // 如果 fileList 本身就是数组
+      else if (Array.isArray(fileList)) {
+        files = fileList;
+      }
+    }
+    
+    // 获取当前已存在的图片
+    const existingImages = (newEvent.images || []).filter(img => img.isExisting);
+    
+    // 如果是创建模式（没有已存在的图片），直接处理所有文件
+    if (existingImages.length === 0) {
+      const convertedImages = files.map((file) => {
+        const { fileObj, previewUrl } = extractFileObject(file);
+        return createImageObject(file, fileObj, previewUrl, false);
+      });
+      
+      setNewEvent(prev => ({
+        ...prev,
+        images: convertedImages
+      }));
+      return;
+    }
+    
+    // 更新模式：只处理新文件
+    const currentNewImages = (newEvent.images || []).filter(img => !img.isExisting);
+    const currentNewFileNames = currentNewImages.map(img => img.name);
+    
+    const trulyNewFiles = files.filter(file => {
+      const fileName = file.name || file.filename;
+      return !currentNewFileNames.includes(fileName);
+    });
+    
+    if (trulyNewFiles.length === 0) {
+      return;
+    }
+    
+    const newConvertedImages = trulyNewFiles.map((file) => {
+      const { fileObj, previewUrl } = extractFileObject(file);
+      return createImageObject(file, fileObj, previewUrl, false);
+    });
+    
+    // 合并所有图片
+    const allImages = [...existingImages, ...currentNewImages, ...newConvertedImages];
     
     setNewEvent(prev => ({
       ...prev,
-      images: [
-        // 保留已存在的图片
-        ...(prev.images || []).filter(img => img.isExisting),
-        // 添加新上传的图片
-        ...files.map(file => {
-          // 尝试多种方式获取文件对象
-          let fileObj = null;
-          let previewUrl = '';
-          
-          // 方式1: 从 currentFile 获取
-          if (file.currentFile && file.currentFile.fileInstance) {
-            fileObj = file.currentFile.fileInstance;
-            previewUrl = file.currentFile.url || '';
-          }
-          // 方式2: 从 originFileObj 获取
-          else if (file.originFileObj) {
-            fileObj = file.originFileObj;
-          }
-          // 方式3: 从 file 属性获取
-          else if (file.file) {
-            fileObj = file.file;
-          }
-          // 方式4: 直接使用 file
-          else if (file instanceof File) {
-            fileObj = file;
-          }
-          
-          // 如果没有获取到文件对象，尝试创建预览URL
-          if (!previewUrl && fileObj && (fileObj instanceof File || fileObj instanceof Blob)) {
-            try {
-              previewUrl = URL.createObjectURL(fileObj);
-            } catch (error) {
-              previewUrl = '';
-            }
-          }
-          
-          // 如果还是没有预览URL，使用文件自带的URL
-          if (!previewUrl && file.url) {
-            previewUrl = file.url;
-          }
-          
-          return {
-            name: file.name,
-            url: previewUrl,
-            file: fileObj,
-            content_type: file.type || 'image/jpeg',
-            status: file.status || 'done',
-            isExisting: false // 标记为新上传的图片
-          };
-        })
-      ]
+      images: allImages
     }));
   };
 
+  // 删除演出图片
+  const deleteScheduleImage = async (scheduleId, imageName) => {
+    try {
+      const response = await fetch(`${config.API_BASE_URL}/schedule/${scheduleId}/imageDelete/${imageName}/`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || '删除图片失败');
+      }
+
+      Notification.success({
+        title: '删除成功',
+        content: '图片已删除',
+        duration: 3,
+      });
+    } catch (error) {
+      Notification.error({
+        title: '删除失败',
+        content: error.message || '未知错误',
+        duration: 3,
+      });
+      throw error;
+    }
+  };
+
   // 删除图片
-  const removeImage = (index) => {
+  const removeImage = async (index) => {
+    const removedImage = newEvent.images[index];
+    
+    // 如果是更新模式且删除的是已存在的图片，需要调用后端API删除
+    if (editingId && removedImage && removedImage.isExisting) {
+      try {
+        await deleteScheduleImage(editingId, removedImage.filename || removedImage.name);
+      } catch (error) {
+        // 如果API调用失败，不删除本地图片
+        return;
+      }
+    }
+    
     setNewEvent(prev => {
       const newImages = [...prev.images];
-      const removedImage = newImages[index];
       
       // 释放ObjectURL避免内存泄漏（仅对新上传的图片）
       if (removedImage && !removedImage.isExisting && removedImage.url && removedImage.url.startsWith('blob:')) {
@@ -688,31 +820,23 @@ const CalendarPage = () => {
       });
       
       // 添加图片文件 - 后端从 request.FILES.getlist("imgs") 获取
-      (values.images || []).forEach((img) => {
-        // 只处理新上传的图片文件
-        if (!img.isExisting && img.file && (img.file instanceof File || img.file instanceof Blob)) {
-          formData.append('imgs', img.file, img.name);
+      (newEvent.images || []).forEach((img) => {
+        // 只处理有文件对象的图片（新上传的图片）
+        if (img.file && (img.file instanceof File || img.file instanceof Blob)) {
+          const fileName = img.name || img.filename || `file_${Date.now()}`;
+          formData.append('imgs', img.file, fileName);
         }
       });
       
       // 添加所有图片的完整信息（包括已存在的和新上传的）
-      const allImages = (values.images || []).map(img => ({
-        filename: img.filename || img.name,
-        url: img.isExisting ? img.originalUrl : null,
+      const allImages = (newEvent.images || []).map(img => ({
+        filename: img.filename || img.name || `file_${Date.now()}`, // 确保有文件名
+        url: img.isExisting ? img.originalUrl : img.url, // 新上传的图片使用预览URL
         isExisting: img.isExisting,
         content_type: img.content_type
       }));
       
       formData.append('images_info', JSON.stringify(allImages));
-      
-      // 添加调试信息
-      console.log('All images info:', allImages);
-      
-      // 添加调试信息
-      console.log('FormData contents:');
-      for (let [key, value] of formData.entries()) {
-        console.log(key, value);
-      }
       
       if (editingId) {
         await updateSchedule(editingId, formData);
@@ -1109,6 +1233,9 @@ const CalendarPage = () => {
               onChange={(fileList, file) => {
                 handleImageUpload(fileList);
               }}
+              onFileChange={(fileList, file) => {
+                handleImageUpload(fileList);
+              }}
             >
               <div style={{ 
                 border: '2px dashed var(--semi-color-border)',
@@ -1328,7 +1455,6 @@ const CalendarPage = () => {
             setImagePreviewVisible(false);
             setPreviewImage(null);
           }}
-          onWheel={handleWheel}
         >
           <img 
             src={`${config.API_BASE_URL}${previewImage.url}`}
