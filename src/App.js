@@ -1,26 +1,34 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Layout, Nav, Button, Typography, Card, Space, Row, Col } from '@douyinfe/semi-ui';
 import { IconApps, IconCalendar } from '@douyinfe/semi-icons';
 import RecognitionPage from './pages/RecognitionPage.jsx';
 import CalendarPage from './pages/CalendarPage.jsx';
+import GroupPage from './pages/GroupPage.jsx';
 import './App.css';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 
-function App() {
+// 主应用组件
+const AppContent = () => {
+  const location = useLocation();
   const [currentPage, setCurrentPage] = useState(() => {
-    const saved = typeof window !== 'undefined' ? sessionStorage.getItem('currentPage') : null;
-    return saved && ['home', 'calendar', 'recognition'].includes(saved) ? saved : 'home';
+    const path = location.pathname;
+    if (path === '/calendar') return 'calendar';
+    if (path === '/recognition') return 'recognition';
+    if (path.startsWith('/group/')) return 'group';
+    return 'home';
   });
 
-  // 页面加载时从 sessionStorage 恢复状态
+  // 页面加载时从 URL 恢复状态
   useEffect(() => {
-    const savedPage = sessionStorage.getItem('currentPage');
-    if (savedPage && ['home', 'calendar', 'recognition'].includes(savedPage) && savedPage !== currentPage) {
-      setCurrentPage(savedPage);
-    }
-  }, []);
+    const path = location.pathname;
+    if (path === '/calendar') setCurrentPage('calendar');
+    else if (path === '/recognition') setCurrentPage('recognition');
+    else if (path.startsWith('/group/')) setCurrentPage('group');
+    else setCurrentPage('home');
+  }, [location.pathname]);
 
   // 保存当前页面到 sessionStorage
   const handlePageChange = (page) => {
@@ -35,7 +43,11 @@ function App() {
 
   const handleNavClick = (data) => {
     console.log('导航点击事件:', data);
-    handlePageChange(data.itemKey);
+    if (data.itemKey === 'calendar') {
+      window.location.href = '/calendar';
+    } else if (data.itemKey === 'recognition') {
+      window.location.href = '/recognition';
+    }
   };
 
   const renderContent = () => (
@@ -52,7 +64,7 @@ function App() {
             title="演出日历" 
             style={{ height: '300px', cursor: 'pointer' }}
             shadows="hover"
-            onClick={() => handlePageChange('calendar')}
+            onClick={() => window.location.href = '/calendar'}
           >
             <Space vertical style={{ width: '100%', height: '100%' }}>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -67,7 +79,7 @@ function App() {
                 type="primary" 
                 block 
                 style={{ marginTop: 'auto' }}
-                onClick={() => handlePageChange('calendar')}
+                onClick={() => window.location.href = '/calendar'}
               >
                 进入演出日历
               </Button>
@@ -80,7 +92,7 @@ function App() {
             title="演出表识别" 
             style={{ height: '300px', cursor: 'pointer' }}
             shadows="hover"
-            onClick={() => handlePageChange('recognition')}
+            onClick={() => window.location.href = '/recognition'}
           >
             <Space vertical style={{ width: '100%', height: '100%' }}>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -95,7 +107,7 @@ function App() {
                 type="primary" 
                 block 
                 style={{ marginTop: 'auto' }}
-                onClick={() => handlePageChange('recognition')}
+                onClick={() => window.location.href = '/recognition'}
               >
                 开始识别演出表
               </Button>
@@ -150,7 +162,7 @@ function App() {
         <Title 
           heading={3} 
           style={{ margin: 0, color: 'var(--semi-color-text-0)', cursor: 'pointer' }}
-          onClick={() => handlePageChange('home')}
+          onClick={() => window.location.href = '/'}
         >
           地下偶像相关便利站
         </Title>
@@ -176,11 +188,23 @@ function App() {
 
       {/* 主内容区域 */}
       <Content style={{ backgroundColor: 'var(--semi-color-bg-0)' }}>
-        {currentPage === 'recognition' ? <RecognitionPage /> : 
-         currentPage === 'calendar' ? <CalendarPage /> : 
-         renderContent()}
+        <Routes>
+          <Route path="/" element={renderContent()} />
+          <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/recognition" element={<RecognitionPage />} />
+          <Route path="/group/:groupName" element={<GroupPage />} />
+        </Routes>
       </Content>
     </Layout>
+  );
+};
+
+// 主应用组件包装器
+function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
   );
 }
 

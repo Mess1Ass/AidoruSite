@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Typography, Space, Row, Col, Modal, Form, Input, DatePicker, Notification, Upload, Tag } from '@douyinfe/semi-ui';
 import { IconPlus, IconCalendar, IconMapPin, IconClock, IconUser, IconChevronLeft, IconChevronRight, IconClose, IconUpload, IconImage } from '@douyinfe/semi-icons';
+import { useNavigate } from 'react-router-dom';
 import { getCurrentDomainConfig } from '../config';
 import config from '../config';
 import './CalendarPage.css';
@@ -8,6 +9,7 @@ import './CalendarPage.css';
 const { Title, Text } = Typography;
 
 const CalendarPage = () => {
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [modalVisible, setModalVisible] = useState(false);
   const [viewModalVisible, setViewModalVisible] = useState(false);
@@ -18,6 +20,8 @@ const CalendarPage = () => {
   const [previewImage, setPreviewImage] = useState(null);
   const [imageScale, setImageScale] = useState(1);
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  const [submitting, setSubmitting] = useState(false);
+  const [submittingModalVisible, setSubmittingModalVisible] = useState(false);
   
   // 获取编辑者模式状态
   const domainConfig = getCurrentDomainConfig();
@@ -478,7 +482,37 @@ const CalendarPage = () => {
   const handleImageToggleZoom = (e) => {
     e.stopPropagation();
     if (imageScale === 1) {
-      setImageScale(2);
+      // 根据图片比例计算合适的放大倍数
+      const imageElement = document.querySelector('img[src*="' + previewImage.url + '"]');
+      if (imageElement) {
+        const imageWidth = imageElement.naturalWidth;
+        const imageHeight = imageElement.naturalHeight;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        // 计算图片在视口中的显示尺寸
+        const imageAspectRatio = imageWidth / imageHeight;
+        const viewportAspectRatio = viewportWidth / viewportHeight;
+        
+        let displayWidth, displayHeight;
+        if (imageAspectRatio > viewportAspectRatio) {
+          // 图片更宽，以宽度为准
+          displayWidth = Math.min(imageWidth, viewportWidth * 0.9);
+          displayHeight = displayWidth / imageAspectRatio;
+        } else {
+          // 图片更高，以高度为准
+          displayHeight = Math.min(imageHeight, viewportHeight * 0.9);
+          displayWidth = displayHeight * imageAspectRatio;
+        }
+        
+        // 计算放大倍数，确保放大后图片清晰可见
+        // 如果图片本身很小，放大更多；如果图片已经很大，放大较少
+        const baseScale = Math.max(2, Math.min(4, Math.max(viewportWidth / displayWidth, viewportHeight / displayHeight) * 1.2));
+        setImageScale(baseScale);
+      } else {
+        // 如果无法获取图片元素，使用默认放大倍数
+        setImageScale(3);
+      }
       setImagePosition({ x: 0, y: 0 });
     } else {
       setImageScale(1);
@@ -566,6 +600,7 @@ const CalendarPage = () => {
     document.addEventListener('mouseup', handleMouseUp);
   };
 
+
   // 添加演出团体
   const addGroup = () => {
     setNewEvent(prev => ({
@@ -574,8 +609,47 @@ const CalendarPage = () => {
     }));
   };
 
+  // 删除演出团体API
+  const deleteShowlog = async (groupName, scheduleId) => {
+    try {
+      const response = await fetch(`${config.API_BASE_URL}/group/showlog/delete/${groupName}/${scheduleId}/`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || '删除演出团体失败');
+      }
+
+      Notification.success({
+        title: '删除成功',
+        content: '演出团体已删除',
+        duration: 3,
+      });
+    } catch (error) {
+      Notification.error({
+        title: '删除失败',
+        content: error.message || '未知错误',
+        duration: 3,
+      });
+      throw error;
+    }
+  };
+
   // 删除演出团体
-  const removeGroup = (index) => {
+  const removeGroup = async (index) => {
+    const removedGroup = newEvent.groups[index];
+    
+    // 如果是更新模式且删除的是已存在的团体，需要调用后端API删除
+    if (editingId && removedGroup && removedGroup.isExisting) {
+      try {
+        await deleteShowlog(removedGroup.name, editingId);
+      } catch (error) {
+        // 如果API调用失败，不删除本地团体
+        return;
+      }
+    }
+    
     setNewEvent(prev => ({
       ...prev,
       groups: prev.groups.filter((_, i) => i !== index)
@@ -658,7 +732,7 @@ const CalendarPage = () => {
       previewUrl = file.url;
     }
     
-    return {
+          return {
       fileObj,
       previewUrl
     };
@@ -789,6 +863,8 @@ const CalendarPage = () => {
 
   // 添加新演出
   const handleAddEvent = async (values) => {
+    setSubmitting(true);
+    setSubmittingModalVisible(true);
     try {
       // 处理日期格式，统一为 YYYY-MM-DD
       const dateStr = formatDateToYMD(values.date);
@@ -853,6 +929,9 @@ const CalendarPage = () => {
         content: error.message || '未知错误',
         duration: 3,
       });
+    } finally {
+      setSubmitting(false);
+      setSubmittingModalVisible(false);
     }
   };
 
@@ -1015,9 +1094,9 @@ const CalendarPage = () => {
                       onClick={() => handleEventClick(event)}
                     >
                       <div className="event-title">{event.title}</div>
-                      <div className="event-detail">
+                          <div className="event-detail">
                         <IconCalendar /> {event.date}
-                      </div>
+                          </div>
                       <div className="event-detail">
                         <IconMapPin /> {event.location}
                       </div>
@@ -1071,9 +1150,11 @@ const CalendarPage = () => {
           title={editingId ? '更新演出' : '添加演出'}
           visible={modalVisible}
           onCancel={() => {
-            setModalVisible(false);
-            setNewEvent({ title: '', date: null, location: '', city: '', groups: [], images: [] });
-            setEditingId(null);
+            if (!submitting) {
+              setModalVisible(false);
+              setNewEvent({ title: '', date: null, location: '', city: '', groups: [], images: [] });
+              setEditingId(null);
+            }
           }}
           footer={null}
           width={800}
@@ -1125,43 +1206,54 @@ const CalendarPage = () => {
           {/* 演出团体 */}
           <div style={{ fontWeight: 600, margin: '8px 0' }}>演出团体 <span style={{ fontSize: '12px', color: 'var(--semi-color-text-2)', marginLeft: '4px' }}>（可选）</span></div>
             <div style={{ marginBottom: '16px' }}>
-              <Space vertical style={{ width: '100%' }}>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
+              gap: '8px',
+              marginBottom: '8px'
+            }}>
               {(newEvent.groups || []).map((group, index) => (
-                <Card key={index} size="small" style={{ backgroundColor: 'var(--semi-color-fill-0)', width: '100%' }}>
-                 <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', flex: 1 }}>
-                     <label style={{ fontSize: '12px', fontWeight: 500, color: 'var(--semi-color-text-1)', marginBottom: '4px' }}>团体名称</label>
-                      <Input
-                       placeholder="请输入团体名称"
-                       style={{ width: '300px' }}
-                       value={group.name}
-                       onChange={val => updateGroup(index, 'name', val)}
-                     />
-                   </div>
-                      <Button
-                        type="tertiary"
-                        icon={<IconClose />}
-                        size="small"
-                     onClick={() => removeGroup(index)}
-                     style={{ marginTop: '20px' }}
-                      />
-                    </Space>
-                  </Card>
-                ))}
+                <div key={index} style={{ position: 'relative' }}>
+                  <Input
+                    placeholder="请输入团体名称"
+                    value={group.name || ''}
+                    onChange={val => updateGroup(index, 'name', val)}
+                    disabled={editingId && group.isExisting}
+                    style={{ 
+                      width: '100%',
+                      backgroundColor: editingId && group.isExisting ? 'var(--semi-color-fill-0)' : 'transparent'
+                    }}
+                  />
+                  <Button
+                    type="tertiary"
+                    icon={<IconClose />}
+                    size="small"
+                    onClick={() => removeGroup(index)}
+                    style={{
+                      position: 'absolute',
+                      top: '4px',
+                      right: '4px',
+                      minWidth: '20px',
+                      height: '20px',
+                      padding: '0'
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
                 <Button
                   type="tertiary"
                   icon={<IconPlus />}
-                onClick={addGroup}
+              onClick={addGroup}
                   style={{ width: '100%' }}
                 >
-                添加演出团体
+              添加演出团体
                 </Button>
-              </Space>
             </div>
           
           {/* 演出图片 */}
           <div style={{ fontWeight: 600, margin: '8px 0' }}>演出图片</div>
-          
+
           {/* 显示已存在的图片 */}
           {newEvent.images && newEvent.images.length > 0 && (
             <div style={{ marginBottom: '16px' }}>
@@ -1182,10 +1274,10 @@ const CalendarPage = () => {
                         border: '1px solid var(--semi-color-border)'
                       }}
                     />
-                    <Button
-                      type="tertiary"
-                      icon={<IconClose />}
-                      size="small"
+                      <Button
+                        type="tertiary"
+                        icon={<IconClose />}
+                        size="small"
                       onClick={() => removeImage(index)}
                       style={{
                         position: 'absolute',
@@ -1256,16 +1348,25 @@ const CalendarPage = () => {
                 </div>
               </div>
             </Upload>
-          </div>
+            </div>
           
 
           <div>
             <Space style={{ width: '100%', justifyContent: 'flex-end', marginBottom: '12px' }}>
-              <Button onClick={() => setModalVisible(false)}>
+              <Button 
+                disabled={submitting}
+                onClick={() => {
+                  if (!submitting) {
+                    setModalVisible(false);
+                  }
+                }}
+              >
                 取消
               </Button>
               <Button 
                 type="primary" 
+                loading={submitting}
+                disabled={submitting}
                 onClick={async () => {
                   if (!newEvent.title) {
                     Notification.warning({ title: '请填写演出名称', duration: 3 });
@@ -1306,11 +1407,23 @@ const CalendarPage = () => {
               <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>演出团体:</div>
               {viewEvent.groups && viewEvent.groups.length > 0 ? (
                 <Space wrap>
-                  {viewEvent.groups.map((group, index) => (
-                    <Tag key={index} color="blue" size="large">
-                      {typeof group === 'string' ? group : group.name}
-                    </Tag>
-                  ))}
+                  {viewEvent.groups.map((group, index) => {
+                    const groupName = typeof group === 'string' ? group : group.name;
+                    return (
+                      <Tag 
+                        key={index} 
+                        color="blue" 
+                        size="large"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => {
+                          // 使用React Router导航到团体页面
+                          navigate(`/group/${encodeURIComponent(groupName)}`);
+                        }}
+                      >
+                        {groupName}
+                      </Tag>
+                    );
+                  })}
                 </Space>
               ) : (
                 <Text type="tertiary">暂无演出团体</Text>
@@ -1318,7 +1431,7 @@ const CalendarPage = () => {
             </div>
             
             {/* 演出图片 */}
-            <div style={{ marginTop: '16px' }}>
+              <div style={{ marginTop: '16px' }}>
               <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>演出图片:</div>
               {viewEvent.imgs && viewEvent.imgs.length > 0 ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px' }}>
@@ -1344,15 +1457,15 @@ const CalendarPage = () => {
                           height: '120px',
                           backgroundColor: 'var(--semi-color-fill-0)',
                           borderRadius: '8px',
-                          display: 'flex',
+                      display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           border: '1px solid var(--semi-color-border)'
                         }}>
                           <IconImage size="large" style={{ color: 'var(--semi-color-text-2)' }} />
-                        </div>
-                      )}
-                      <div style={{
+              </div>
+            )}
+              <div style={{ 
                         position: 'absolute',
                         bottom: '4px',
                         left: '4px',
@@ -1361,20 +1474,20 @@ const CalendarPage = () => {
                         color: 'white',
                         fontSize: '10px',
                         padding: '2px 4px',
-                        borderRadius: '4px',
-                        textAlign: 'center',
+                borderRadius: '4px',
+                textAlign: 'center',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap'
-                      }}>
+              }}>
                         {img.filename}
-                      </div>
+              </div>
                     </div>
                   ))}
                 </div>
               ) : (
                 <Text type="tertiary">暂无演出图片</Text>
-              )}
+            )}
             </div>
             
             {isEditorMode && (
@@ -1389,8 +1502,9 @@ const CalendarPage = () => {
                         date: formatDateToYMD(viewEvent.date),
                         location: viewEvent.location || '',
                         city: viewEvent.city || '',
-                        groups: (viewEvent.groups || []).map(group => ({
-                          name: typeof group === 'string' ? group : group.name
+                        groups: (viewEvent.groups || []).map((group, index) => ({
+                          name: typeof group === 'string' ? group : group.name,
+                          isExisting: true // 标记为已存在的团体
                         })),
                         images: (viewEvent.imgs || []).map(img => ({
                           name: img.filename,
@@ -1474,6 +1588,38 @@ const CalendarPage = () => {
           />
         </div>
       )}
+
+      {/* 提交中模态框 */}
+      <Modal
+        title=""
+        visible={submittingModalVisible}
+        closable={false}
+        maskClosable={false}
+        footer={null}
+        width={300}
+        centered
+      >
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '20px 0',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '16px'
+        }}>
+          <div style={{ fontSize: '16px', fontWeight: 500 }}>
+            {editingId ? '正在更新演出...' : '正在添加演出...'}
+          </div>
+          <div style={{ 
+            width: '40px', 
+            height: '40px', 
+            border: '3px solid var(--semi-color-border)',
+            borderTop: '3px solid var(--semi-color-primary)',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+        </div>
+      </Modal>
     </div>
   );
 };
