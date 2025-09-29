@@ -1,7 +1,7 @@
 // src/config.js
 
-const ENV = "dev"; // 切换成 "prod" 使用服务器地址
-// const ENV = "prod"; 
+// const ENV = "dev"; // 切换成 "prod" 使用服务器地址
+const ENV = "prod"; 
 
 // 获取当前域名
 const getCurrentDomain = () => {
