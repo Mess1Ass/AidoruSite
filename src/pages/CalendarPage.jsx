@@ -668,7 +668,7 @@ const CalendarPage = () => {
 
   // 创建图片对象的通用函数
   const createImageObject = (file, fileObj, previewUrl, isExisting = false) => {
-    return {
+          return {
       name: file.name || file.filename,
       url: previewUrl || '',
       file: fileObj,
@@ -1151,9 +1151,9 @@ const CalendarPage = () => {
           visible={modalVisible}
           onCancel={() => {
             if (!submitting) {
-              setModalVisible(false);
+            setModalVisible(false);
               setNewEvent({ title: '', date: null, location: '', city: '', groups: [], images: [] });
-              setEditingId(null);
+            setEditingId(null);
             }
           }}
           footer={null}
@@ -1214,7 +1214,7 @@ const CalendarPage = () => {
             }}>
               {(newEvent.groups || []).map((group, index) => (
                 <div key={index} style={{ position: 'relative' }}>
-                  <Input
+                      <Input
                     placeholder="请输入团体名称"
                     value={group.name || ''}
                     onChange={val => updateGroup(index, 'name', val)}
@@ -1224,10 +1224,10 @@ const CalendarPage = () => {
                       backgroundColor: editingId && group.isExisting ? 'var(--semi-color-fill-0)' : 'transparent'
                     }}
                   />
-                  <Button
-                    type="tertiary"
-                    icon={<IconClose />}
-                    size="small"
+                      <Button
+                        type="tertiary"
+                        icon={<IconClose />}
+                        size="small"
                     onClick={() => removeGroup(index)}
                     style={{
                       position: 'absolute',
@@ -1428,7 +1428,7 @@ const CalendarPage = () => {
               ) : (
                 <Text type="tertiary">暂无演出团体</Text>
               )}
-            </div>
+                  </div>
             
             {/* 演出图片 */}
               <div style={{ marginTop: '16px' }}>
