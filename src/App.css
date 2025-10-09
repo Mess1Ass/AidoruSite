@@ -1,4 +1,4 @@
-/* 全局样式重置 */
+/* 性能优化 */
 * {
   box-sizing: border-box;
 }
@@ -8,6 +8,31 @@ body {
   padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   background-color: var(--semi-color-bg-0);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* 硬件加速 */
+.semi-card,
+.semi-button,
+.calendar-date-cell,
+.event-card {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* 图片优化 */
+img {
+  max-width: 100%;
+  height: auto;
+  loading: lazy;
+}
+
+/* 减少重绘 */
+.semi-modal,
+.semi-side-sheet {
+  contain: layout style paint;
 }
 
 .App {
@@ -51,18 +76,55 @@ body {
   transition: all 0.2s ease;
 }
 
-/* 响应式设计 */
+/* 触摸友好的交互 */
 @media (max-width: 768px) {
-  .semi-layout-header {
-    padding: 0 16px;
+  /* 增加触摸目标大小 */
+  .semi-button {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px 16px;
   }
   
-  .semi-layout-content {
-    padding: 16px;
+  .semi-input {
+    min-height: 44px;
+    font-size: 16px; /* 防止iOS缩放 */
   }
   
-  .semi-col {
-    margin-bottom: 16px;
+  .semi-datepicker {
+    min-height: 44px;
+  }
+  
+  /* 卡片点击区域优化 */
+  .semi-card {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+  }
+  
+  .semi-card:active {
+    transform: scale(0.98);
+  }
+  
+  /* 导航项触摸优化 */
+  .semi-navigation-item {
+    min-height: 48px;
+    padding: 12px 16px;
+  }
+  
+  /* 模态框内容滚动优化 */
+  .semi-modal-body {
+    max-height: 80vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* 防止双击缩放 */
+  * {
+    touch-action: manipulation;
+  }
+  
+  /* 优化滚动体验 */
+  .semi-scrolllist {
+    -webkit-overflow-scrolling: touch;
   }
 }
 

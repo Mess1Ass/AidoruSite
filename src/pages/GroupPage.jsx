@@ -267,6 +267,20 @@ const GroupPage = () => {
     setImagePreviewVisible(true);
   };
 
+  // 按演出时间排序演出历史
+  const getSortedShowlogs = () => {
+    if (!groupInfo.showlogs) return [];
+    return [...groupInfo.showlogs].sort((a, b) => {
+      // 按日期降序排列（最新的在前）
+      return new Date(b.date) - new Date(a.date);
+    });
+  };
+
+  // 获取最近的演出（已排序的前3个）
+  const getRecentShowlogs = () => {
+    return getSortedShowlogs().slice(0, 3);
+  };
+
   // 点击团体名称跳转
   const handleGroupClick = (groupName) => {
     setScheduleModalVisible(false);
@@ -317,22 +331,28 @@ const GroupPage = () => {
   }
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ 
+      padding: window.innerWidth <= 768 ? '16px' : '24px', 
+      maxWidth: '1200px', 
+      margin: '0 auto' 
+    }}>
       {/* 头部导航 */}
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
-        marginBottom: '24px',
-        gap: '16px'
+        marginBottom: window.innerWidth <= 768 ? '16px' : '24px',
+        gap: '16px',
+        flexWrap: window.innerWidth <= 768 ? 'wrap' : 'nowrap'
       }}>
         <Button 
           icon={<IconArrowLeft />} 
           onClick={handleGoBack}
           type="tertiary"
+          size={window.innerWidth <= 768 ? 'small' : 'default'}
         >
-          返回
+          {window.innerWidth <= 768 ? '' : '返回'}
         </Button>
-        <Title level={2} style={{ margin: 0 }}>
+        <Title level={window.innerWidth <= 768 ? 3 : 2} style={{ margin: 0, flex: 1 }}>
           {groupInfo.name}
         </Title>
         {isEditorMode && (
@@ -342,36 +362,46 @@ const GroupPage = () => {
             type="primary"
             size="small"
           >
-            编辑团体
+            {window.innerWidth <= 768 ? '' : '编辑团体'}
           </Button>
         )}
       </div>
 
-      <Row gutter={24}>
+      <Row gutter={window.innerWidth <= 768 ? 16 : 24}>
         {/* 左侧主要内容 */}
-        <Col span={16}>
+        <Col span={window.innerWidth <= 768 ? 24 : 16}>
           {/* 团体基本信息 */}
           <Card style={{ marginBottom: '24px' }}>
             <Space direction="vertical" style={{ width: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: window.innerWidth <= 768 ? '12px' : '16px',
+                flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
+                textAlign: window.innerWidth <= 768 ? 'center' : 'left'
+              }}>
                 <Avatar 
                   size="extra-large"
                   style={{ 
                     backgroundColor: '#1890ff',
                     borderRadius: '50%',
-                    width: '80px',
-                    height: '80px',
+                    width: window.innerWidth <= 768 ? '60px' : '80px',
+                    height: window.innerWidth <= 768 ? '60px' : '80px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '32px',
+                    fontSize: window.innerWidth <= 768 ? '24px' : '32px',
                     fontWeight: 'bold'
                   }}
                 >
                   {groupInfo.name?.charAt(0) || 'G'}
                 </Avatar>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <Title level={3} style={{ margin: 0 }}>
+                <div style={{ 
+                  flex: 1, 
+                  minWidth: 0,
+                  textAlign: window.innerWidth <= 768 ? 'center' : 'left'
+                }}>
+                  <Title level={window.innerWidth <= 768 ? 4 : 3} style={{ margin: 0 }}>
                     {hasMixedLanguage(groupInfo.name) ? (
                       renderMixedLanguageText(groupInfo.name)
                     ) : (
@@ -385,7 +415,7 @@ const GroupPage = () => {
                       </span>
                     )}
                   </Title>
-                  <Text type="secondary" style={{ fontSize: '16px' }}>
+                  <Text type="secondary" style={{ fontSize: window.innerWidth <= 768 ? '14px' : '16px' }}>
                     {hasMixedLanguage(groupInfo.location) ? (
                       renderMixedLanguageText(groupInfo.location)
                     ) : (
@@ -405,27 +435,38 @@ const GroupPage = () => {
               <Divider />
               
               {/* 统计信息 */}
-              <Row gutter={16}>
+              <Row gutter={window.innerWidth <= 768 ? 8 : 16}>
                 <Col span={8}>
                   <div style={{ textAlign: 'center' }}>
-                    <Text type="tertiary">成员数量</Text>
-                    <div style={{ fontSize: '24px', fontWeight: 600, color: '#1890ff' }}>
+                    <Text type="tertiary" size={window.innerWidth <= 768 ? 'small' : 'normal'}>成员数量</Text>
+                    <div style={{ 
+                      fontSize: window.innerWidth <= 768 ? '18px' : '24px', 
+                      fontWeight: 600, 
+                      color: '#1890ff' 
+                    }}>
                       {groupInfo.mates ? groupInfo.mates.length : 0}
                     </div>
                   </div>
                 </Col>
                 <Col span={8}>
                   <div style={{ textAlign: 'center' }}>
-                    <Text type="tertiary">演出次数</Text>
-                    <div style={{ fontSize: '24px', fontWeight: 600, color: '#52c41a' }}>
+                    <Text type="tertiary" size={window.innerWidth <= 768 ? 'small' : 'normal'}>演出次数</Text>
+                    <div style={{ 
+                      fontSize: window.innerWidth <= 768 ? '18px' : '24px', 
+                      fontWeight: 600, 
+                      color: '#52c41a' 
+                    }}>
                       {groupInfo.showlogs ? groupInfo.showlogs.length : 0}
                     </div>
                   </div>
                 </Col>
                 <Col span={8}>
                   <div style={{ textAlign: 'center' }}>
-                    <Text type="tertiary">常驻地</Text>
-                    <div style={{ fontSize: '16px', fontWeight: 500 }}>
+                    <Text type="tertiary" size={window.innerWidth <= 768 ? 'small' : 'normal'}>常驻地</Text>
+                    <div style={{ 
+                      fontSize: window.innerWidth <= 768 ? '12px' : '16px', 
+                      fontWeight: 500 
+                    }}>
                       {groupInfo.location || '未设置'}
                     </div>
                   </div>
@@ -454,12 +495,12 @@ const GroupPage = () => {
             style={{ marginBottom: '24px' }}
           >
             {groupInfo.mates && groupInfo.mates.length > 0 ? (
-              <Row gutter={16}>
+              <Row gutter={window.innerWidth <= 768 ? 8 : 16}>
                 {groupInfo.mates.map((memberName, index) => (
-                  <Col span={6} key={index}>
+                  <Col span={window.innerWidth <= 768 ? 12 : 6} key={index}>
                     <div style={{ 
                       textAlign: 'center', 
-                      padding: '16px', 
+                      padding: window.innerWidth <= 768 ? '12px' : '16px', 
                       position: 'relative',
                       border: '1px solid #f0f0f0',
                       borderRadius: '8px',
@@ -471,12 +512,12 @@ const GroupPage = () => {
                           marginBottom: '8px', 
                           backgroundColor: '#1890ff',
                           borderRadius: '50%',
-                          width: '60px',
-                          height: '60px',
+                          width: window.innerWidth <= 768 ? '40px' : '60px',
+                          height: window.innerWidth <= 768 ? '40px' : '60px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '20px',
+                          fontSize: window.innerWidth <= 768 ? '16px' : '20px',
                           fontWeight: 'bold'
                         }}
                       >
@@ -530,9 +571,9 @@ const GroupPage = () => {
 
           {/* 演出历史 */}
           <Card title="演出历史" style={{ marginBottom: '24px' }}>
-            {groupInfo.showlogs && groupInfo.showlogs.length > 0 ? (
+            {getSortedShowlogs().length > 0 ? (
               <Timeline>
-                {groupInfo.showlogs.map((showlog, index) => (
+                {getSortedShowlogs().map((showlog, index) => (
                   <Timeline.Item key={index}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
@@ -569,7 +610,7 @@ const GroupPage = () => {
         </Col>
 
         {/* 右侧信息 */}
-        <Col span={8}>
+        <Col span={window.innerWidth <= 768 ? 24 : 8}>
           {/* 团体标签 */}
           <Card title="团体标签" style={{ marginBottom: '24px' }}>
             <Space wrap>
@@ -581,9 +622,9 @@ const GroupPage = () => {
 
           {/* 最近演出 */}
           <Card title="最近演出">
-            {groupInfo.showlogs && groupInfo.showlogs.length > 0 ? (
+            {getRecentShowlogs().length > 0 ? (
               <Space direction="vertical" style={{ width: '100%' }}>
-                {groupInfo.showlogs.slice(0, 3).map((showlog, index) => (
+                {getRecentShowlogs().map((showlog, index) => (
                   <div key={index} style={{ 
                     padding: '12px', 
                     border: '1px solid #f0f0f0', 
@@ -626,7 +667,8 @@ const GroupPage = () => {
           setScheduleDetail(null);
         }}
         footer={null}
-        width={600}
+        width={window.innerWidth <= 768 ? '95%' : 600}
+        style={{ maxWidth: window.innerWidth <= 768 ? '100vw' : '600px' }}
       >
         {scheduleDetail && (
           <Space direction="vertical" style={{ width: '100%' }}>
@@ -697,8 +739,8 @@ const GroupPage = () => {
         visible={imagePreviewVisible}
         onCancel={() => setImagePreviewVisible(false)}
         footer={null}
-        width="90%"
-        style={{ maxWidth: '1200px' }}
+        width={window.innerWidth <= 768 ? '95%' : '90%'}
+        style={{ maxWidth: window.innerWidth <= 768 ? '100vw' : '1200px' }}
       >
         {previewImage && (
           <div style={{ textAlign: 'center' }}>
@@ -721,7 +763,8 @@ const GroupPage = () => {
         visible={groupEditModalVisible}
         onCancel={() => setGroupEditModalVisible(false)}
         footer={null}
-        width={500}
+        width={window.innerWidth <= 768 ? '95%' : 500}
+        style={{ maxWidth: window.innerWidth <= 768 ? '100vw' : '500px' }}
       >
         <Form>
           <Space direction="vertical" style={{ width: '100%' }}>
@@ -775,7 +818,8 @@ const GroupPage = () => {
           setEditingMemberIndex(-1);
         }}
         footer={null}
-        width={400}
+        width={window.innerWidth <= 768 ? '95%' : 400}
+        style={{ maxWidth: window.innerWidth <= 768 ? '100vw' : '400px' }}
       >
         <Space direction="vertical" style={{ width: '100%' }}>
           <div>

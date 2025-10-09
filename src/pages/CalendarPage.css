@@ -7,6 +7,124 @@
   min-height: 100vh;
 }
 
+@media (max-width: 768px) {
+  .calendar-page {
+    padding: 12px;
+  }
+  
+  .calendar-container {
+    min-height: auto;
+  }
+  
+  .calendar-wrapper {
+    padding: 12px;
+  }
+  
+  .calendar-month-header {
+    margin-bottom: 12px;
+    padding: 12px 0;
+  }
+  
+  .calendar-month-header .semi-button {
+    margin: 0 8px;
+    padding: 8px 12px;
+  }
+  
+  .calendar-weekdays {
+    font-size: 12px;
+    padding: 8px 0;
+  }
+  
+  .calendar-dates {
+    gap: 2px;
+    grid-template-columns: repeat(7, 1fr);
+    grid-template-rows: repeat(6, minmax(50px, auto));
+  }
+  
+  .calendar-date-cell {
+    min-height: 50px;
+    font-size: 12px;
+    padding: 4px;
+    overflow: hidden;
+    word-wrap: break-word;
+    word-break: break-all;
+    justify-content: flex-start;
+    align-items: flex-start;
+  }
+  
+  .calendar-date-cell .event-indicator {
+    width: 4px;
+    height: 4px;
+    margin: 1px;
+    flex-shrink: 0;
+  }
+  
+  .calendar-date-cell .event-text {
+    font-size: 10px;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .sidebar {
+    margin-top: 16px;
+  }
+  
+  .today-events,
+  .stats-card {
+    margin-bottom: 16px;
+  }
+  
+  .event-card {
+    margin-bottom: 8px;
+  }
+  
+  .event-title {
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  
+  .event-detail {
+    font-size: 12px;
+    margin-bottom: 2px;
+  }
+  
+  .stat-item {
+    padding: 8px 0;
+  }
+  
+  .stat-label {
+    font-size: 12px;
+  }
+  
+  .stat-value {
+    font-size: 16px;
+  }
+  
+  /* 手机端事件徽章优化 */
+  .event-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background-color: var(--semi-color-primary);
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: bold;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+}
+
 .calendar-header {
   display: flex;
   justify-content: space-between;
@@ -89,6 +207,7 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .calendar-date-cell:hover {
@@ -273,35 +392,66 @@
   }
 }
 
+/* 移动端触摸优化 */
 @media (max-width: 768px) {
-  .calendar-header {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
-  
-  .calendar-container {
-    min-height: 500px;
-  }
-  
-  .calendar-grid {
-    height: 300px;
-  }
-  
+  /* 日历单元格触摸优化 */
   .calendar-date-cell {
+    min-height: 80px;
+    padding: 8px;
+    touch-action: manipulation;
+  }
+  
+  .calendar-date-cell:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+  }
+  
+  /* 事件卡片触摸优化 */
+  .event-card {
     min-height: 60px;
-    padding: 4px;
+    padding: 12px;
   }
   
-  .location-item {
-    font-size: 9px;
-    padding: 1px 3px;
+  .event-card:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
   }
   
-  .event-badge {
-    width: 16px;
-    height: 16px;
-    font-size: 9px;
+  /* 按钮触摸优化 */
+  .calendar-month-header .semi-button {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px;
+  }
+  
+  /* 上传区域触摸优化 */
+  .semi-upload {
+    min-height: 120px;
+  }
+  
+  /* 表单输入框触摸优化 */
+  .semi-input,
+  .semi-datepicker {
+    min-height: 48px;
+    font-size: 16px;
+  }
+  
+  /* 团体输入框网格优化 */
+  .group-input-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  
+  /* 图片预览触摸优化 */
+  .image-preview-container {
+    touch-action: pan-x pan-y;
+  }
+  
+  /* 模态框滚动优化 */
+  .semi-modal-body {
+    max-height: 85vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 

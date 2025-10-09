@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Typography, Space, Row, Col, Modal, Form, Input, DatePicker, Notification, Upload, Tag } from '@douyinfe/semi-ui';
+import { Card, Button, Typography, Space, Row, Col, Modal, Form, Input, DatePicker, Notification, Upload, Tag, AutoComplete } from '@douyinfe/semi-ui';
 import { IconPlus, IconCalendar, IconMapPin, IconClock, IconUser, IconChevronLeft, IconChevronRight, IconClose, IconUpload, IconImage } from '@douyinfe/semi-icons';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentDomainConfig } from '../config';
@@ -22,13 +22,39 @@ const CalendarPage = () => {
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
   const [submitting, setSubmitting] = useState(false);
   const [submittingModalVisible, setSubmittingModalVisible] = useState(false);
+  const [allGroups, setAllGroups] = useState([]);
   
   // 获取编辑者模式状态
   const domainConfig = getCurrentDomainConfig();
   const isEditorMode = domainConfig?.editorMode ?? true;
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // 获取所有团队列表
+  const fetchAllGroups = async () => {
+    try {
+      const response = await fetch(`${config.API_BASE_URL}/group/list/`);
+      if (response.ok) {
+        const data = await response.json();
+        setAllGroups(data || []);
+      }
+    } catch (error) {
+      console.error('获取团队列表失败:', error);
+    }
+  };
+
+  // 为每个输入框维护独立的数据源状态
+  const [groupDataSources, setGroupDataSources] = useState({});
   
+  // 根据输入过滤团队名称
+  const filterGroups = (inputValue) => {
+    if (!inputValue || inputValue.length < 1) return [];
+    return allGroups
+      .filter(group => group.name && group.name.toLowerCase().includes(inputValue.toLowerCase()))
+      .map(group => ({ label: group.name, value: group.name }))
+      .slice(0, 10); // 限制显示数量
+  };
+
   // 将中文标点转换为英文标点
   const convertChinesePunctuation = (text) => {
     if (!text || typeof text !== 'string') return text;
@@ -407,6 +433,7 @@ const CalendarPage = () => {
   // 组件挂载时获取数据
   useEffect(() => {
     fetchSchedulesByMonth(currentMonth.year, currentMonth.month);
+    fetchAllGroups(); // 获取所有团队列表
   }, [currentMonth]);
 
   // 页面卸载时清除缓存和ObjectURL
@@ -959,23 +986,25 @@ const CalendarPage = () => {
           </div>
         )}
         
-        {/* 演出地点信息 */}
-        <div className="event-locations">
-          {dayEvents.slice(0, 2).map(event => (
-            <div 
-              key={event._id}
-              className="location-item"
-              title={`${event.title} - ${event.location}`}
-            >
-              {event.location}
-            </div>
-          ))}
-          {dayEvents.length > 2 && (
-            <div className="more-events">
-              +{dayEvents.length - 2} 更多
-            </div>
-          )}
-        </div>
+        {/* 演出地点信息 - 手机端不显示地点，只显示数量 */}
+        {window.innerWidth > 768 && (
+          <div className="event-locations">
+            {dayEvents.slice(0, 2).map(event => (
+              <div 
+                key={event._id}
+                className="location-item event-text"
+                title={`${event.title} - ${event.location}`}
+              >
+                {event.location}
+              </div>
+            ))}
+            {dayEvents.length > 2 && (
+              <div className="more-events event-text">
+                +{dayEvents.length - 2} 更多
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -1006,9 +1035,9 @@ const CalendarPage = () => {
             </Space>
       </div>
       
-      <Row gutter={[24, 24]} style={{ minHeight: '700px' }}>
+      <Row gutter={[window.innerWidth <= 768 ? 12 : 24, window.innerWidth <= 768 ? 12 : 24]} style={{ minHeight: window.innerWidth <= 768 ? 'auto' : '700px' }}>
             {/* 大日历区域 */}
-            <Col span={18}>
+            <Col span={window.innerWidth <= 768 ? 24 : 18}>
               <Card 
                 title={
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1034,6 +1063,7 @@ const CalendarPage = () => {
               {/* 月份导航 */}
               <div className="calendar-month-header">
                 <Button 
+                  size={window.innerWidth <= 768 ? 'small' : 'default'}
                   onClick={() => {
                     const newDate = new Date(selectedDate);
                     newDate.setMonth(newDate.getMonth() - 1);
@@ -1043,10 +1073,11 @@ const CalendarPage = () => {
                 >
                   ←
                 </Button>
-                <Title heading={3} style={{ margin: '0 20px' }}>
+                <Title heading={window.innerWidth <= 768 ? 4 : 3} style={{ margin: window.innerWidth <= 768 ? '0 12px' : '0 20px', fontSize: window.innerWidth <= 768 ? '16px' : '20px' }}>
                   {selectedDate.getFullYear()}年{selectedDate.getMonth() + 1}月
                 </Title>
                 <Button 
+                  size={window.innerWidth <= 768 ? 'small' : 'default'}
                   onClick={() => {
                     const newDate = new Date(selectedDate);
                     newDate.setMonth(newDate.getMonth() + 1);
@@ -1080,7 +1111,7 @@ const CalendarPage = () => {
         </Col>
 
         {/* 侧边栏 */}
-        <Col span={6}>
+        <Col span={window.innerWidth <= 768 ? 24 : 6}>
           <div className="sidebar">
             {/* 选中日期演出详情 */}
             <Card title={`${selectedDate.getMonth() + 1}月${selectedDate.getDate()}日演出详情`} className="today-events">
@@ -1157,7 +1188,8 @@ const CalendarPage = () => {
             }
           }}
           footer={null}
-          width={800}
+          width={window.innerWidth <= 768 ? '95%' : 800}
+          style={{ maxWidth: window.innerWidth <= 768 ? '100vw' : '800px' }}
         >
           {/* 基本信息 */}
           <div style={{ fontWeight: 600, margin: '8px 0' }}>基本信息</div>
@@ -1169,7 +1201,11 @@ const CalendarPage = () => {
             placeholder="请输入演出名称"
             value={newEvent.title}
             onChange={val => setNewEvent(prev => ({ ...prev, title: val }))}
-            style={{ marginBottom: '16px' }}
+            style={{ 
+              marginBottom: window.innerWidth <= 768 ? '12px' : '16px',
+              fontSize: window.innerWidth <= 768 ? '16px' : '14px'
+            }}
+            size={window.innerWidth <= 768 ? 'large' : 'default'}
           />
           
           <div style={{ marginBottom: '8px' }}>
@@ -1179,7 +1215,12 @@ const CalendarPage = () => {
             placeholder="请选择演出日期"
             value={newEvent.date || undefined}
             onChange={val => setNewEvent(prev => ({ ...prev, date: formatDateToYMD(val) }))}
-            style={{ width: '100%', marginBottom: '16px' }}
+            style={{ 
+              width: '100%', 
+              marginBottom: window.innerWidth <= 768 ? '12px' : '16px',
+              fontSize: window.innerWidth <= 768 ? '16px' : '14px'
+            }}
+            size={window.innerWidth <= 768 ? 'large' : 'default'}
           />
           
           <div style={{ marginBottom: '8px' }}>
@@ -1189,18 +1230,26 @@ const CalendarPage = () => {
             placeholder="请输入演出地点"
             value={newEvent.location}
             onChange={val => setNewEvent(prev => ({ ...prev, location: val }))}
-            style={{ marginBottom: '16px' }}
+            style={{ 
+              marginBottom: window.innerWidth <= 768 ? '12px' : '16px',
+              fontSize: window.innerWidth <= 768 ? '16px' : '14px'
+            }}
+            size={window.innerWidth <= 768 ? 'large' : 'default'}
           />
           
           <div style={{ marginBottom: '8px' }}>
             <label style={{ fontWeight: 600, color: 'var(--semi-color-text-0)' }}>城市</label>
             <span style={{ fontSize: '12px', color: 'var(--semi-color-text-2)', marginLeft: '4px' }}>（可选）</span>
           </div>
-          <Input
+                      <Input
             placeholder="请输入城市"
             value={newEvent.city}
             onChange={val => setNewEvent(prev => ({ ...prev, city: val }))}
-            style={{ marginBottom: '20px' }}
+            style={{ 
+              marginBottom: window.innerWidth <= 768 ? '16px' : '20px',
+              fontSize: window.innerWidth <= 768 ? '16px' : '14px'
+            }}
+            size={window.innerWidth <= 768 ? 'large' : 'default'}
           />
           
           {/* 演出团体 */}
@@ -1208,22 +1257,41 @@ const CalendarPage = () => {
             <div style={{ marginBottom: '16px' }}>
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
-              gap: '8px',
+              gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fill, minmax(200px, 1fr))', 
+              gap: window.innerWidth <= 768 ? '12px' : '8px',
               marginBottom: '8px'
             }}>
               {(newEvent.groups || []).map((group, index) => (
                 <div key={index} style={{ position: 'relative' }}>
-                      <Input
+                      <AutoComplete
                     placeholder="请输入团体名称"
                     value={group.name || ''}
-                    onChange={val => updateGroup(index, 'name', val)}
+                        onChange={val => {
+                      updateGroup(index, 'name', val);
+                      // 更新数据源
+                      setGroupDataSources(prev => ({
+                        ...prev,
+                        [index]: filterGroups(val)
+                      }));
+                    }}
+                    onSearch={val => {
+                      const filtered = filterGroups(val);
+                      setGroupDataSources(prev => ({
+                        ...prev,
+                        [index]: filtered
+                      }));
+                    }}
+                    data={groupDataSources[index] || []}
                     disabled={editingId && group.isExisting}
+                    size={window.innerWidth <= 768 ? 'large' : 'default'}
                     style={{ 
                       width: '100%',
-                      backgroundColor: editingId && group.isExisting ? 'var(--semi-color-fill-0)' : 'transparent'
+                      backgroundColor: editingId && group.isExisting ? 'var(--semi-color-fill-0)' : 'transparent',
+                      fontSize: window.innerWidth <= 768 ? '16px' : '14px'
                     }}
-                  />
+                    dropdownStyle={{ maxHeight: '200px', overflow: 'auto' }}
+                    emptyContent="暂无匹配的团队"
+                      />
                       <Button
                         type="tertiary"
                         icon={<IconClose />}
@@ -1395,7 +1463,8 @@ const CalendarPage = () => {
           visible={viewModalVisible}
           onCancel={() => setViewModalVisible(false)}
           footer={null}
-          width={600}
+          width={window.innerWidth <= 768 ? '95%' : 600}
+          style={{ maxWidth: window.innerWidth <= 768 ? '100vw' : '600px' }}
         >
           <div>
             <p><IconCalendar /> 日期: {viewEvent.date}</p>
@@ -1596,7 +1665,7 @@ const CalendarPage = () => {
         closable={false}
         maskClosable={false}
         footer={null}
-        width={300}
+        width={window.innerWidth <= 768 ? '80%' : 300}
         centered
       >
         <div style={{ 

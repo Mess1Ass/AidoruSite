@@ -12,10 +12,21 @@ const RecognitionPage = () => {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [recognitionResult, setRecognitionResult] = useState(null);
   const [error, setError] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   
   // 获取编辑者模式状态
   const domainConfig = getCurrentDomainConfig();
   const isEditorMode = domainConfig?.editorMode ?? true;
+
+  // 监听窗口大小变化
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // 上传配置
   const uploadProps = {
@@ -282,15 +293,26 @@ const RecognitionPage = () => {
   };
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-      <Title heading={2} style={{ marginBottom: '24px', textAlign: 'center' }}>
+    <div style={{ 
+      padding: isMobile ? '16px' : '24px', 
+      maxWidth: '1200px', 
+      margin: '0 auto' 
+    }}>
+      <Title 
+        heading={isMobile ? 3 : 2} 
+        style={{ 
+          marginBottom: isMobile ? '16px' : '24px', 
+          textAlign: 'center',
+          fontSize: isMobile ? '20px' : '24px'
+        }}
+      >
         演出表识别
       </Title>
       
       {/* 功能建设中提示 */}
       <Empty
-        image={<IllustrationConstruction style={{ width: 150, height: 150 }} />}
-        darkModeImage={<IllustrationConstructionDark style={{ width: 150, height: 150 }} />}
+        image={<IllustrationConstruction style={{ width: isMobile ? 120 : 150, height: isMobile ? 120 : 150 }} />}
+        darkModeImage={<IllustrationConstructionDark style={{ width: isMobile ? 120 : 150, height: isMobile ? 120 : 150 }} />}
         title={'功能建设中'}
         description="当前功能暂未开放，敬请期待。"
       />
@@ -474,12 +496,12 @@ const RecognitionPage = () => {
         </div>
       )}
       
-      <Row gutter={[24, 24]}>
+      <Row gutter={[isMobile ? 16 : 24, isMobile ? 16 : 24]}>
         {/* 上传区域 */}
         <Col span={24}>
-          <Card title="上传演出表图片" style={{ marginBottom: '24px' }}>
+          <Card title="上传演出表图片" style={{ marginBottom: isMobile ? '16px' : '24px' }}>
             <Space vertical style={{ width: '100%' }}>
-              <Text type="tertiary">
+              <Text type="tertiary" size={isMobile ? 'small' : 'normal'}>
                 支持 JPG、JPEG、PNG、GIF、BMP、WEBP 格式，文件大小不超过 10MB
               </Text>
               
@@ -502,17 +524,17 @@ const RecognitionPage = () => {
                     <div style={{ 
                       border: '2px dashed var(--semi-color-border)',
                       borderRadius: '8px',
-                      padding: '40px',
+                      padding: isMobile ? '24px' : '40px',
                       textAlign: 'center',
                       cursor: 'pointer',
                       transition: 'all 0.3s ease'
                     }}>
-                      <IconUpload size="extra-large" style={{ color: 'var(--semi-color-primary)', marginBottom: '16px' }} />
+                      <IconUpload size={isMobile ? 'large' : 'extra-large'} style={{ color: 'var(--semi-color-primary)', marginBottom: '16px' }} />
                       <div>
-                        <Text strong style={{ fontSize: '16px', display: 'block', marginBottom: '8px' }}>
-                          点击或拖拽上传演出表图片
+                        <Text strong style={{ fontSize: isMobile ? '14px' : '16px', display: 'block', marginBottom: '8px' }}>
+                          {isMobile ? '点击上传演出表图片' : '点击或拖拽上传演出表图片'}
                         </Text>
-                        <Text type="tertiary">
+                        <Text type="tertiary" size={isMobile ? 'small' : 'normal'}>
                           支持 JPG、JPEG、PNG、GIF、BMP、WEBP 格式
                         </Text>
                       </div>
@@ -522,17 +544,17 @@ const RecognitionPage = () => {
                   <div style={{ 
                     border: '2px dashed var(--semi-color-border)',
                     borderRadius: '8px',
-                    padding: '40px',
+                    padding: isMobile ? '24px' : '40px',
                     textAlign: 'center',
                     backgroundColor: 'var(--semi-color-fill-0)',
                     opacity: 0.6
                   }}>
-                    <IconUpload size="extra-large" style={{ color: 'var(--semi-color-text-3)', marginBottom: '16px' }} />
+                    <IconUpload size={isMobile ? 'large' : 'extra-large'} style={{ color: 'var(--semi-color-text-3)', marginBottom: '16px' }} />
                     <div>
-                      <Text strong style={{ fontSize: '16px', display: 'block', marginBottom: '8px', color: 'var(--semi-color-text-3)' }}>
+                      <Text strong style={{ fontSize: isMobile ? '14px' : '16px', display: 'block', marginBottom: '8px', color: 'var(--semi-color-text-3)' }}>
                         只读模式 - 无法上传文件
                       </Text>
-                      <Text type="tertiary" style={{ color: 'var(--semi-color-text-3)' }}>
+                      <Text type="tertiary" style={{ color: 'var(--semi-color-text-3)', fontSize: isMobile ? '12px' : '14px' }}>
                         当前为只读模式，无法使用识别功能
                       </Text>
                     </div>
@@ -541,12 +563,12 @@ const RecognitionPage = () => {
               ) : (
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ marginBottom: '16px' }}>
-                    <IconImage size="extra-large" style={{ color: 'var(--semi-color-success)' }} />
+                    <IconImage size={isMobile ? 'large' : 'extra-large'} style={{ color: 'var(--semi-color-success)' }} />
                   </div>
-                  <Text strong style={{ display: 'block', marginBottom: '8px' }}>
+                  <Text strong style={{ display: 'block', marginBottom: '8px', fontSize: isMobile ? '14px' : '16px' }}>
                     {uploadedFile.name || '未知文件名'}
                   </Text>
-                  <Text type="tertiary" style={{ display: 'block', marginBottom: '16px' }}>
+                  <Text type="tertiary" style={{ display: 'block', marginBottom: '16px', fontSize: isMobile ? '12px' : '14px' }}>
                     {uploadedFile.size ? (uploadedFile.size / 1024 / 1024).toFixed(2) + ' MB' : '未知大小'}
                   </Text>
                   <Space>
@@ -554,6 +576,7 @@ const RecognitionPage = () => {
                       icon={<IconRefresh />} 
                       onClick={handleReupload}
                       theme="borderless"
+                      size={isMobile ? 'small' : 'default'}
                     >
                       重新上传
                     </Button>
@@ -620,20 +643,23 @@ const RecognitionPage = () => {
                 
                 <Divider />
                 
-                <Row gutter={[16, 16]}>
-                  <Col span={12}>
+                <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
+                  <Col span={isMobile ? 24 : 12}>
                     <Button 
                       type="primary" 
                       icon={<IconTick />}
                       block
+                      size={isMobile ? 'small' : 'default'}
+                      style={{ marginBottom: isMobile ? '8px' : '0' }}
                     >
                       添加到演出日历
                     </Button>
                   </Col>
-                  <Col span={12}>
+                  <Col span={isMobile ? 24 : 12}>
                     <Button 
                       icon={<IconRefresh />}
                       block
+                      size={isMobile ? 'small' : 'default'}
                     >
                       重新识别
                     </Button>
